@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaming Market Archetype Dashboard (2023-2026)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0d1117;color:#e6edf3;padding:20px 24px}
+h1{text-align:center;font-size:24px;font-weight:600;margin-bottom:4px;color:#f0f6fc}
+.subtitle{text-align:center;font-size:13px;color:#8b949e;margin-bottom:16px}
+.tab-bar{display:flex;justify-content:center;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+.tab-btn{padding:9px 22px;border:1px solid #30363d;border-radius:8px;background:#161b22;color:#8b949e;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.tab-btn:hover{background:#21262d;color:#c9d1d9}
+.tab-btn.active{background:#58a6ff;color:#0d1117;border-color:#58a6ff}
+.page{display:none}.page.active{display:block}
+.legend{display:flex;justify-content:center;gap:18px;margin-bottom:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9d1d9}
+.legend-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.controls{display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
+.controls button{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 14px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s}
+.controls button:hover{background:#30363d;color:#f0f6fc}
+.zoom-label{font-size:12px;color:#8b949e}
+.minimap-wrap{position:relative;margin:0 auto 6px auto;border:1px solid #30363d;border-radius:6px;background:#161b22;overflow:hidden}
+.viewport-indicator{position:absolute;top:0;height:100%;background:rgba(88,166,255,.15);border-left:2px solid #58a6ff;border-right:2px solid #58a6ff;pointer-events:none;transition:left .06s,width .06s}
+.chart-wrap{border:1px solid #30363d;border-radius:8px;background:#161b22;overflow:hidden;position:relative;width:100%}
+.chart-wrap svg{display:block}
+.summary-row{display:flex;gap:20px;margin-bottom:20px;justify-content:center;flex-wrap:wrap}
+.summary-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:18px 22px;flex:1 1 420px;min-width:300px;max-width:560px;cursor:pointer}
+.summary-card:hover{border-color:#58a6ff}
+.summary-card h3{font-size:14px;font-weight:600;color:#c9d1d9;margin-bottom:10px;text-align:center}
+.summary-card{text-align:center}
+.summary-card svg{display:inline-block;max-width:100%;height:auto}
+.tooltip{position:fixed;pointer-events:none;background:#1c2129;border:1px solid #444c56;border-radius:8px;padding:12px 16px;font-size:13px;line-height:1.5;color:#e6edf3;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:9999;max-width:340px;display:none}
+.tooltip .tt-genre{font-weight:700;font-size:14px;margin-bottom:4px}
+.tooltip .tt-row{display:flex;justify-content:space-between;gap:18px}
+.tooltip .tt-label{color:#8b949e}
+.tooltip .tt-val{font-weight:600}
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:10000;justify-content:center;align-items:center}
+#modal-overlay.open{display:flex}
+#modal-box{background:#161b22;border:1px solid #30363d;border-radius:12px;width:94%;max-width:900px;max-height:92vh;overflow-y:auto;padding:28px 32px;box-shadow:0 16px 48px rgba(0,0,0,.5);position:relative}
+#modal-close{position:absolute;top:14px;right:18px;background:none;border:none;color:#8b949e;font-size:22px;cursor:pointer;line-height:1;padding:4px 8px;border-radius:4px}
+#modal-close:hover{background:#30363d;color:#f0f6fc}
+#modal-title{font-size:18px;font-weight:700;margin-bottom:6px;padding-right:40px}
+#modal-subtitle{font-size:13px;color:#8b949e;margin-bottom:20px}
+.bar-label{font-size:11px;fill:#c9d1d9}
+.bar-value{font-size:10px;fill:#8b949e}
+.segment{cursor:pointer;transition:opacity .12s}
+.segment:hover{opacity:.82}
+.col-label-genre{font-size:12px;font-weight:700;fill:#e6edf3}
+.col-label-hours{font-size:10px;fill:#8b949e}
+.col-label-share{font-size:11px;font-weight:600;fill:#58a6ff}
+.axis-label{font-size:12px;fill:#8b949e}
+.hint{text-align:center;font-size:12px;color:#484f58;margin-top:8px;margin-bottom:18px}
+.pie-label{font-size:12px;fill:#e6edf3;pointer-events:none;font-weight:500}
+.comp-section{margin-bottom:28px}
+.comp-section h2{font-size:16px;font-weight:600;color:#f0f6fc;margin-bottom:6px;text-align:center}
+.comp-section .comp-desc{font-size:12px;color:#8b949e;text-align:center;margin-bottom:14px}
+.comp-card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:20px 24px;margin:0 auto 24px auto;max-width:1400px;overflow-x:auto;cursor:pointer;transition:border-color .2s;text-align:center}
+.comp-card>svg{display:inline-block;max-width:100%;height:auto}
+.comp-card:hover{border-color:#58a6ff}
+.comp-legend{display:flex;justify-content:center;gap:24px;margin-bottom:14px;flex-wrap:wrap}
+.comp-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#c9d1d9}
+.comp-legend-swatch{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+.kpi-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+.kpi-box{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px 20px;text-align:center;min-width:160px;flex:0 1 200px}
+.kpi-box .kpi-value{font-size:22px;font-weight:700;color:#58a6ff}
+.kpi-box .kpi-label{font-size:11px;color:#8b949e;margin-top:4px}
+.arch-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:24px;max-width:1200px;margin-left:auto;margin-right:auto}
+.arch-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;transition:border-color .2s;cursor:pointer}
+.arch-card:hover{border-color:#58a6ff}
+.arch-card .arch-icon{font-size:28px;margin-bottom:8px}
+.arch-card h3{font-size:16px;font-weight:700;margin-bottom:4px}
+.arch-card .arch-tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-bottom:8px}
+.arch-card .arch-desc{font-size:13px;color:#8b949e;line-height:1.5;margin-bottom:12px}
+.arch-card .arch-platform-label{font-size:11px;font-weight:700;margin-bottom:2px;margin-top:10px}
+.arch-card .arch-example{font-size:12px;color:#c9d1d9;padding:3px 0;border-bottom:1px solid #21262d;display:flex;justify-content:space-between;gap:8px}
+.arch-card .arch-game-link{color:#c9d1d9;text-decoration:none;border-bottom:1px dotted #484f58;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arch-card .arch-game-link:hover{color:#58a6ff;border-bottom-color:#58a6ff}
+.arch-card .arch-example:last-child{border-bottom:none}
+.arch-card .arch-example .ae-mau{color:#8b949e;font-size:11px}
+#fs-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.80);z-index:10001;justify-content:center;align-items:center;padding:20px}
+#fs-overlay.open{display:flex}
+#fs-box{background:#161b22;border:1px solid #30363d;border-radius:14px;width:96%;max-width:1400px;max-height:94vh;overflow:auto;padding:28px 32px;box-shadow:0 16px 48px rgba(0,0,0,.6);position:relative}
+#fs-close{position:absolute;top:14px;right:18px;background:none;border:none;color:#8b949e;font-size:24px;cursor:pointer;line-height:1;padding:4px 8px;border-radius:4px;z-index:2}
+#fs-close:hover{background:#30363d;color:#f0f6fc}
+#fs-title{font-size:18px;font-weight:700;margin-bottom:14px;padding-right:40px;color:#f0f6fc}
+.method-content{max-width:960px;margin:0 auto;line-height:1.7}
+.method-content h2{font-size:18px;font-weight:700;color:#f0f6fc;margin-top:28px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #30363d}
+.method-content h3{font-size:15px;font-weight:600;color:#c9d1d9;margin-top:18px;margin-bottom:6px}
+.method-content p{font-size:13px;color:#8b949e;margin-bottom:10px}
+.method-content .method-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:14px 0}
+.method-content .method-box{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:16px}
+.method-content .method-box h4{font-size:13px;font-weight:700;color:#c9d1d9;margin-bottom:6px}
+.method-content .method-box p{font-size:12px;margin-bottom:4px}
+.method-content table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.method-content th,.method-content td{padding:8px 12px;border:1px solid #30363d;color:#c9d1d9}
+.method-content th{background:#161b22;color:#58a6ff;font-weight:600;text-align:left}
+.dblclick-hint{text-align:center;font-size:11px;color:#484f58;margin-top:4px;font-style:italic}
+</style>
+</head>
+<body>
+<h1>Global Gaming Market &mdash; Archetype Dashboard</h1>
+<p class="subtitle">PC + Console / Switch &amp; Roblox &middot; 2023&ndash;2026</p>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-page="archetypes">Archetypes</button>
+  <button class="tab-btn" data-page="pc">PC + Console</button>
+  <button class="tab-btn" data-page="pc-inv">PC by Archetype</button>
+  <button class="tab-btn" data-page="roblox">Roblox</button>
+  <button class="tab-btn" data-page="roblox-inv">Roblox by Archetype</button>
+  <button class="tab-btn" data-page="compare">Comparison</button>
+  <button class="tab-btn" data-page="methodology">Methodology</button>
+</div>
+
+<div class="page active" id="page-archetypes">
+  <p class="hint" style="margin-bottom:16px">Double-click any card to see the top titles for that archetype</p>
+  <div class="arch-grid" id="arch-grid"></div>
+</div>
+
+<div class="page" id="page-pc">
+  <p class="hint" style="margin-bottom:12px"><strong>Inclusion filter:</strong> only PC + Console and Switch titles with average MAU &ge; 100,000 across 2023&ndash;2025 are included.</p>
+  <div class="summary-row">
+    <div class="summary-card" id="card-pie-genre-pc"><h3>Genre Distribution (Total MAU)</h3><svg id="pie-genre-pc"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+    <div class="summary-card" id="card-pie-ori-pc"><h3>Archetype Distribution</h3><svg id="pie-ori-pc"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+  </div>
+  <div class="legend legend-pc"></div>
+  <div class="controls"><button class="btn-reset" data-target="pc">Reset</button><button class="btn-zin" data-target="pc">Zoom +</button><button class="btn-zout" data-target="pc">Zoom &minus;</button><span class="zoom-label" id="zoom-label-pc">100%</span></div>
+  <div class="minimap-wrap" id="minimap-wrap-pc"><svg id="minimap-pc"></svg><div class="viewport-indicator" id="vp-pc"></div></div>
+  <div class="chart-wrap" id="chart-wrap-pc"><svg id="mekko-pc"></svg></div>
+  <p class="hint">Scroll to zoom &middot; Drag to pan &middot; Double-click a segment for Top 20 titles</p>
+</div>
+
+<div class="page" id="page-roblox">
+  <div class="summary-row">
+    <div class="summary-card" id="card-pie-genre-roblox"><h3>Genre Distribution (CCU)</h3><svg id="pie-genre-roblox"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+    <div class="summary-card" id="card-pie-ori-roblox"><h3>Archetype Distribution</h3><svg id="pie-ori-roblox"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+  </div>
+  <div class="legend legend-roblox"></div>
+  <div class="controls"><button class="btn-reset" data-target="roblox">Reset</button><button class="btn-zin" data-target="roblox">Zoom +</button><button class="btn-zout" data-target="roblox">Zoom &minus;</button><span class="zoom-label" id="zoom-label-roblox">100%</span></div>
+  <div class="minimap-wrap" id="minimap-wrap-roblox"><svg id="minimap-roblox"></svg><div class="viewport-indicator" id="vp-roblox"></div></div>
+  <div class="chart-wrap" id="chart-wrap-roblox"><svg id="mekko-roblox"></svg></div>
+  <p class="hint">Scroll to zoom &middot; Drag to pan &middot; Double-click a segment for Top 20 titles</p>
+</div>
+
+<div class="page" id="page-pc-inv">
+  <p class="hint" style="margin-bottom:12px"><strong>Inclusion filter:</strong> only PC + Console and Switch titles with average MAU &ge; 100,000 across 2023&ndash;2025 are included.</p>
+  <div class="summary-row">
+    <div class="summary-card" id="card-pie-ori-pc-inv"><h3>Archetype Distribution (Total MAU)</h3><svg id="pie-ori-pc-inv"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+    <div class="summary-card" id="card-pie-genre-pc-inv"><h3>Genre Distribution (Total MAU)</h3><svg id="pie-genre-pc-inv"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+  </div>
+  <p class="hint" style="margin-bottom:12px">Columns = Archetype share of Total MAU &middot; Vertical stack = Genre breakdown within each archetype</p>
+  <div class="legend legend-pc-inv"></div>
+  <div class="controls"><button class="btn-reset" data-target="pc-inv">Reset</button><button class="btn-zin" data-target="pc-inv">Zoom +</button><button class="btn-zout" data-target="pc-inv">Zoom &minus;</button><span class="zoom-label" id="zoom-label-pc-inv">100%</span></div>
+  <div class="minimap-wrap" id="minimap-wrap-pc-inv"><svg id="minimap-pc-inv"></svg><div class="viewport-indicator" id="vp-pc-inv"></div></div>
+  <div class="chart-wrap" id="chart-wrap-pc-inv"><svg id="mekko-pc-inv"></svg></div>
+  <p class="hint">Scroll to zoom &middot; Drag to pan &middot; Double-click a segment for Top 20 titles</p>
+</div>
+
+<div class="page" id="page-roblox-inv">
+  <div class="summary-row">
+    <div class="summary-card" id="card-pie-ori-roblox-inv"><h3>Archetype Distribution (CCU)</h3><svg id="pie-ori-roblox-inv"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+    <div class="summary-card" id="card-pie-genre-roblox-inv"><h3>Genre Distribution (CCU)</h3><svg id="pie-genre-roblox-inv"></svg><p class="dblclick-hint">Double-click a slice for Top 20 titles &middot; double-click elsewhere to expand</p></div>
+  </div>
+  <p class="hint" style="margin-bottom:12px">Columns = Archetype share of CCU &middot; Vertical stack = Genre breakdown within each archetype</p>
+  <div class="legend legend-roblox-inv"></div>
+  <div class="controls"><button class="btn-reset" data-target="roblox-inv">Reset</button><button class="btn-zin" data-target="roblox-inv">Zoom +</button><button class="btn-zout" data-target="roblox-inv">Zoom &minus;</button><span class="zoom-label" id="zoom-label-roblox-inv">100%</span></div>
+  <div class="minimap-wrap" id="minimap-wrap-roblox-inv"><svg id="minimap-roblox-inv"></svg><div class="viewport-indicator" id="vp-roblox-inv"></div></div>
+  <div class="chart-wrap" id="chart-wrap-roblox-inv"><svg id="mekko-roblox-inv"></svg></div>
+  <p class="hint">Scroll to zoom &middot; Drag to pan &middot; Double-click a segment for Top 20 titles</p>
+</div>
+
+<div class="page" id="page-compare">
+  <p class="hint" style="margin-bottom:16px">Double-click any chart to expand it to full screen</p>
+  <div class="kpi-row" id="kpi-row"></div>
+  <div class="comp-section"><h2>Platform Concentration &mdash; Where Each Platform Skews</h2><p class="comp-desc">Log&#8322; ratio of each genre's share. Positive = PC + Console skews higher, Negative = Roblox skews higher.</p><div class="comp-card" id="cc-concentration"><svg id="comp-concentration"></svg></div></div>
+  <div class="comp-section"><h2>Archetype Radar &mdash; PC + Console vs Roblox</h2><p class="comp-desc">Overlay of archetype distribution across both platforms.</p><div class="comp-card" id="cc-radar" style="display:flex;justify-content:center"><svg id="comp-radar"></svg></div></div>
+  <div class="comp-section"><h2>Genre Market Share &mdash; PC + Console vs Roblox</h2><p class="comp-desc">Paired bars sorted by PC + Console share descending.</p><div class="comp-card" id="cc-genre-bars"><div class="comp-legend" id="comp-legend-genre"></div><svg id="comp-genre-bars"></svg></div></div>
+  <div class="comp-section"><h2>Archetype Distribution &mdash; PC + Console vs Roblox</h2><div class="comp-card" id="cc-ori-bars"><div class="comp-legend" id="comp-legend-ori"></div><svg id="comp-ori-bars"></svg></div></div>
+  <div class="comp-section"><h2>Roblox Over/Under-Index vs PC + Console</h2><p class="comp-desc">Difference in genre share (Roblox % &minus; PC + Console %).</p><div class="comp-card" id="cc-divergence"><svg id="comp-divergence"></svg></div></div>
+  <div class="comp-section"><h2>Archetype Breakdown by Genre &mdash; Side by Side</h2><div class="comp-card" id="cc-sidebyside"><div class="comp-legend" id="comp-legend-ori2"></div><svg id="comp-ori-by-genre"></svg></div></div>
+</div>
+
+<div class="page" id="page-methodology">
+<div class="method-content">
+<h2>Data Sources &amp; Collection</h2>
+<div class="method-grid">
+  <div class="method-box"><h4>PC + Console Data</h4><p>Source: NewZoo.</p><p>Period: Fixed (January 2023 &ndash; December 2025).</p><p><strong>Inclusion filter:</strong> only titles with an <em>average MAU of at least 100,000</em> across the 36-month period are included. Smaller titles are excluded to focus the analysis on the commercially relevant tail.</p><p>Metrics: Total MAU (sum across each month during the period) drives the Mekko and market-share visuals. Peak MAU (highest single-month MAU observed in 2023&ndash;2025) drives the per-title Top 10 rankings.</p><p>Titles: ~350 games passing the 100K average MAU threshold.</p></div>
+  <div class="method-box"><h4>Switch Data</h4><p>Source: NewZoo.</p><p>Period: Fixed (January 2023 &ndash; December 2025).</p><p><strong>Inclusion filter:</strong> same 100,000 average MAU threshold across the 36-month period.</p><p>Merge logic: For titles on both PC/Console and Switch, we take the max total MAU per (Game, Genre, Archetype) tuple to avoid double-counting.</p></div>
+  <div class="method-box"><h4>Roblox Data</h4><p>Source: Scraped from the Roblox website.</p><p>Period: Snapshot as of early 2026.</p><p>Metric: Concurrent Users (CCU) &mdash; a point-in-time measure, not comparable 1:1 with MAU.</p></div>
+</div>
+<p><strong>Important caveat:</strong> PC + Console uses cumulative peak MAU (monthly engagement), while Roblox uses CCU (real-time concurrency). The dashboard compares <em>share distributions</em> and <em>proportional patterns</em>, not absolute values.</p>
+
+<h2>Archetype Classification Framework</h2>
+<p>Every title is classified into exactly one of seven archetypes based on its primary gameplay loop and social structure.</p>
+<table>
+<tr><th>Archetype</th><th>Definition</th><th>Key Criteria</th><th>Examples</th></tr>
+<tr><td style="color:#d2a8ff;font-weight:700">Singleplayer Fixed</td><td>Complete, contained solo experience.</td><td>PvE, solo, boxed or supported. Optional co-op/PvP doesn't change classification.</td><td>ELDEN RING, Hogwarts Legacy, Baldur's Gate 3</td></tr>
+<tr><td style="color:#ffa657;font-weight:700">Grindy Singleplayer</td><td>The grind loop IS the game. Live service, no defined "end."</td><td>Differentiator from Singleplayer Fixed is live service delivery.</td><td>Diablo IV, Monster Hunter Wilds, The First Descendant</td></tr>
+<tr><td style="color:#7ee787;font-weight:700">Co-op Friendslop</td><td>Casual co-op fun with friends. Co-op is the PRIMARY mode.</td><td>Boxed or supported (not endless grind). Social bond is the point.</td><td>R.E.P.O., Lethal Company, PEAK (Aggro Crab)</td></tr>
+<tr><td style="color:#3fb950;font-weight:700">Co-op PvE</td><td>Structured co-op against AI/PvE threats.</td><td>Team up to overcome enemies/missions. Roles &amp; coordination matter.</td><td>HELLDIVERS 2, Warhammer 40K: Space Marine 2, Ready or Not</td></tr>
+<tr><td style="color:#f97583;font-weight:700">Solo Competition</td><td>Individual PvP. Battle royales, FFA, one-vs-many.</td><td>Usually live service. Compete as yourself, not part of a team.</td><td>Call of Duty HQ, EA Sports FC 24, EA Sports FC 25</td></tr>
+<tr><td style="color:#56d4dd;font-weight:700">Team Competition</td><td>Team-based PvP. Organized teams competing.</td><td>Coordination and roles within the team define the experience.</td><td>Marvel Rivals, Battlefield 6, Valorant</td></tr>
+<tr><td style="color:#79c0ff;font-weight:700">Parallel Progression</td><td>Players progress alongside each other in parallel.</td><td>Social show-off element is KEY. "Parallel lives" not direct interaction.</td><td>skate. (2025), Forza Horizon 5, The Crew Motorfest</td></tr>
+</table>
+
+<h2>Genre Taxonomy</h2>
+<p>Genres are assigned per title from source data classification. The dashboard uses 17&ndash;18 genre categories depending on the platform. Genres with zero total are automatically excluded.</p>
+
+<h2>Visualization Methodology</h2>
+<h3>Marimekko (Mekko) Chart</h3>
+<p>Column width = genre's share of total engagement. Vertical stack = archetype breakdown within that genre. Bottom 7 genres grouped as "Other" at default zoom; zooming past 1.5x expands them. Supports up to 300x zoom with pan.</p>
+<h3>Pie / Donut Charts</h3>
+<p>Summary donuts with polyline leader lines for label readability. Slices below 2.5% have labels hidden. Double-click any slice for Top 20 drill-down.</p>
+<h3>Concentration Chart (Log&#8322; Ratio)</h3>
+<p>log&#8322;(PC+Console share / Roblox share). +1 means PC+Console has 2x proportional weight; &minus;1 means Roblox has 2x. Balanced log scale prevents visual domination.</p>
+<h3>Radar / Spider Chart</h3>
+<p>Overlays archetype share distribution for both platforms. Radial axis = share of total engagement.</p>
+<h3>Divergence Chart</h3>
+<p>Raw percentage-point difference (Roblox share &minus; PC+Console share). Green = Roblox proportionally larger; Blue = PC+Console dominant.</p>
+</div>
+</div>
+
+<div id="modal-overlay"><div id="modal-box"><button id="modal-close">&times;</button><div id="modal-title"></div><div id="modal-subtitle"></div><svg id="modal-chart-area"></svg></div></div>
+<div id="fs-overlay"><div id="fs-box"><button id="fs-close">&times;</button><div id="fs-title"></div><div id="fs-content"></div></div></div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const pcAggregate={"Adventure":{"Co-op Friendslop":357532455,"Co-op PvE":88178744,"Grindy Singleplayer":26169146,"Parallel Progression":56337984,"Singleplayer Fixed":987283239,"Solo Competition":0,"Team Competition":22874819},"Arcade":{"Co-op Friendslop":12014331,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":554273,"Solo Competition":28909115,"Team Competition":7587106},"Battle Arena":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":11301593,"Team Competition":15220860},"Card Battle":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":38021243,"Solo Competition":35738267,"Team Competition":0},"Casino":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":3544599,"Solo Competition":0,"Team Competition":0},"Fighting":{"Co-op Friendslop":13285251,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":396147516,"Team Competition":48192620},"Music":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":4167844,"Team Competition":0},"Platformer":{"Co-op Friendslop":54422539,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":140301876,"Solo Competition":0,"Team Competition":0},"Puzzle":{"Co-op Friendslop":3817479,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":11813118,"Solo Competition":9953988,"Team Competition":0},"Racing":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":165114658,"Singleplayer Fixed":6420528,"Solo Competition":255302002,"Team Competition":0},"Role Playing":{"Co-op Friendslop":43182394,"Co-op PvE":18451146,"Grindy Singleplayer":546231373,"Parallel Progression":25589075,"Singleplayer Fixed":798230127,"Solo Competition":0,"Team Competition":9955577},"Sandbox":{"Co-op Friendslop":33609833,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":4061794,"Solo Competition":0,"Team Competition":0},"Shooter":{"Co-op Friendslop":11638883,"Co-op PvE":292980562,"Grindy Singleplayer":51168896,"Parallel Progression":12248817,"Singleplayer Fixed":188714799,"Solo Competition":1044502050,"Team Competition":1183129888},"Simulation":{"Co-op Friendslop":65828600,"Co-op PvE":0,"Grindy Singleplayer":20979124,"Parallel Progression":17975082,"Singleplayer Fixed":257061775,"Solo Competition":0,"Team Competition":0},"Sports":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":41423297,"Singleplayer Fixed":14689437,"Solo Competition":1556249566,"Team Competition":22129909},"Strategy":{"Co-op Friendslop":6230567,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":60117649,"Solo Competition":0,"Team Competition":11293281},"Tabletop":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":4290561,"Team Competition":0}};
+const pcGames=[{game:"Call of Duty HQ",genre:"Shooter",orientation:"Solo Competition",peakMAU:37973646,totalMAU:965654657},{game:"Marvel Rivals",genre:"Shooter",orientation:"Team Competition",peakMAU:22676571,totalMAU:126621295},{game:"Battlefield 6/REDSEC",genre:"Shooter",orientation:"Team Competition",peakMAU:22579430,totalMAU:73395606},{game:"EA Sports FC 24",genre:"Sports",orientation:"Solo Competition",peakMAU:17748161,totalMAU:246190574},{game:"EA SPORTS FIFA 23",genre:"Sports",orientation:"Solo Competition",peakMAU:15790425,totalMAU:200351725},{game:"XDefiant",genre:"Shooter",orientation:"Team Competition",peakMAU:14681783,totalMAU:42758311},{game:"Diablo IV",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:14288293,totalMAU:153861452},{game:"EA Sports FC 25",genre:"Sports",orientation:"Solo Competition",peakMAU:13888069,totalMAU:168251299},{game:"Valorant",genre:"Shooter",orientation:"Team Competition",peakMAU:13868978,totalMAU:284788442},{game:"skate. (2025)",genre:"Sports",orientation:"Parallel Progression",peakMAU:13199489,totalMAU:37933665},{game:"THE FINALS",genre:"Shooter",orientation:"Team Competition",peakMAU:13011587,totalMAU:69985760},{game:"HELLDIVERS 2",genre:"Shooter",orientation:"Co-op PvE",peakMAU:11199077,totalMAU:104895793},{game:"ELDEN RING",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:10988740,totalMAU:121890879},{game:"EA Sports FC 26",genre:"Sports",orientation:"Solo Competition",peakMAU:10879055,totalMAU:36652274},{game:"Hogwarts Legacy",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:10750474,totalMAU:84899058},{game:"NBA 2K23",genre:"Sports",orientation:"Solo Competition",peakMAU:10130906,totalMAU:84963429},{game:"ARC Raiders",genre:"Shooter",orientation:"Solo Competition",peakMAU:9522151,totalMAU:22982216},{game:"The First Descendant",genre:"Shooter",orientation:"Grindy Singleplayer",peakMAU:9398983,totalMAU:26384167},{game:"Baldur's Gate 3",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:8737072,totalMAU:83470845},{game:"Battlefield 2042",genre:"Shooter",orientation:"Team Competition",peakMAU:8664139,totalMAU:136855814},{game:"R.E.P.O.",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:8267789,totalMAU:36549243},{game:"Monster Hunter Wilds",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:8164346,totalMAU:43756783},{game:"Starfield",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:8046850,totalMAU:25211729},{game:"Lethal Company",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:7947843,totalMAU:51321717},{game:"NBA 2K25",genre:"Sports",orientation:"Solo Competition",peakMAU:7470265,totalMAU:66811395},{game:"Call of Duty: Black Ops Cold War",genre:"Shooter",orientation:"Team Competition",peakMAU:6908943,totalMAU:81871573},{game:"MultiVersus",genre:"Fighting",orientation:"Team Competition",peakMAU:6511350,totalMAU:25479687},{game:"FIFA 22",genre:"Sports",orientation:"Solo Competition",peakMAU:6436807,totalMAU:71158520},{game:"NBA 2K24",genre:"Sports",orientation:"Solo Competition",peakMAU:5744641,totalMAU:71712171},{game:"Where Winds Meet",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:5714431,totalMAU:9348106},{game:"PEAK (Aggro Crab)",genre:"Platformer",orientation:"Co-op Friendslop",peakMAU:5683294,totalMAU:24575184},{game:"EA Sports College Football 25",genre:"Sports",orientation:"Solo Competition",peakMAU:5673507,totalMAU:61072276},{game:"DRAGON BALL: Sparking! ZERO",genre:"Fighting",orientation:"Solo Competition",peakMAU:5571370,totalMAU:26108518},{game:"Palworld",genre:"Adventure",orientation:"Grindy Singleplayer",peakMAU:5152015,totalMAU:25521780},{game:"Marvel's Spider-Man 2",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:5098422,totalMAU:48181160},{game:"BattleBit Remastered",genre:"Shooter",orientation:"Team Competition",peakMAU:5094125,totalMAU:22630789},{game:"Madden NFL 24",genre:"Sports",orientation:"Solo Competition",peakMAU:5072684,totalMAU:62156974},{game:"Genshin Impact",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:5040923,totalMAU:125516994},{game:"The Elder Scrolls IV: Oblivion Remastered",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:5036561,totalMAU:14255779},{game:"Throne and Liberty",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:4990192,totalMAU:10734619},{game:"Schedule I",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:4980621,totalMAU:14339469},{game:"NBA 2K26",genre:"Sports",orientation:"Solo Competition",peakMAU:4939923,totalMAU:18878157},{game:"Warhammer 40,000: Space Marine 2",genre:"Shooter",orientation:"Co-op PvE",peakMAU:4931530,totalMAU:25683224},{game:"ELDEN RING NIGHTREIGN",genre:"Role Playing",orientation:"Co-op Friendslop",peakMAU:4814694,totalMAU:19956380},{game:"Cyberpunk 2077",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:4774169,totalMAU:85525082},{game:"Forza Horizon 5",genre:"Racing",orientation:"Parallel Progression",peakMAU:4706831,totalMAU:107867095},{game:"Content Warning",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:4648825,totalMAU:11789649},{game:"Hollow Knight: Silksong",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:4545912,totalMAU:9125839},{game:"Madden NFL 23",genre:"Sports",orientation:"Solo Competition",peakMAU:4535899,totalMAU:46100902},{game:"Delta Force",genre:"Shooter",orientation:"Team Competition",peakMAU:4531201,totalMAU:24383058},{game:"REMATCH (2025)",genre:"Sports",orientation:"Team Competition",peakMAU:4510824,totalMAU:17503599},{game:"Borderlands 4",genre:"Shooter",orientation:"Grindy Singleplayer",peakMAU:4480237,totalMAU:10847615},{game:"Ready or Not",genre:"Shooter",orientation:"Co-op PvE",peakMAU:4309903,totalMAU:39116929},{game:"Path of Exile 2",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:4245213,totalMAU:20628546},{game:"DOOM: The Dark Ages",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:4241724,totalMAU:8842785},{game:"S.T.A.L.K.E.R. 2: Heart of Chornobyl",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:4230387,totalMAU:16325029},{game:"WWE 2K24",genre:"Fighting",orientation:"Solo Competition",peakMAU:4165903,totalMAU:21692738},{game:"F1 23",genre:"Racing",orientation:"Solo Competition",peakMAU:3969437,totalMAU:26679003},{game:"God of War Ragnarok",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3893840,totalMAU:50864568},{game:"MY HERO ULTRA RUMBLE",genre:"Fighting",orientation:"Solo Competition",peakMAU:3883245,totalMAU:17257895},{game:"EA Sports UFC 4",genre:"Fighting",orientation:"Solo Competition",peakMAU:3832097,totalMAU:76743918},{game:"SPLITGATE: Arena Reloaded",genre:"Shooter",orientation:"Team Competition",peakMAU:3747702,totalMAU:7500018},{game:"Clair Obscur: Expedition 33",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:3704437,totalMAU:13946855},{game:"Black Myth: Wukong",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:3693756,totalMAU:18280909},{game:"Indiana Jones and the Great Circle",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3667278,totalMAU:10651090},{game:"Dead Island 2",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3663295,totalMAU:39189688},{game:"Escape From Tarkov",genre:"Shooter",orientation:"Team Competition",peakMAU:3577804,totalMAU:73763965},{game:"Once Human",genre:"Shooter",orientation:"Parallel Progression",peakMAU:3539151,totalMAU:11815891},{game:"EA Sports Madden NFL 25",genre:"Sports",orientation:"Solo Competition",peakMAU:3530844,totalMAU:37776072},{game:"Resident Evil 4 (2023)",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3493557,totalMAU:22721961},{game:"Saints Row (2022) & Boss Factory",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3376374,totalMAU:14204411},{game:"Phasmophobia",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:3337593,totalMAU:68945589},{game:"Far Cry 6",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:3323388,totalMAU:43552857},{game:"PowerWash Simulator",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:3282222,totalMAU:25937624},{game:"Zenless Zone Zero",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:3273791,totalMAU:37344159},{game:"EA Sports UFC 5",genre:"Fighting",orientation:"Solo Competition",peakMAU:3242892,totalMAU:47000731},{game:"The Outlast Trials",genre:"Adventure",orientation:"Co-op PvE",peakMAU:3221725,totalMAU:18333028},{game:"Balatro",genre:"Card Battle",orientation:"Singleplayer Fixed",peakMAU:3215124,totalMAU:30873229},{game:"Atomic Heart",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3178993,totalMAU:15533634},{game:"Chivalry 2",genre:"Fighting",orientation:"Team Competition",peakMAU:3110153,totalMAU:22172652},{game:"Split Fiction",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:3110116,totalMAU:11305087},{game:"The Crew Motorfest",genre:"Racing",orientation:"Parallel Progression",peakMAU:3095686,totalMAU:48878531},{game:"Marvel's Spider-Man: Miles Morales",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3069419,totalMAU:41420935},{game:"STAR WARS Jedi: Survivor",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:3037010,totalMAU:28274924},{game:"Sons of the Forest",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:2987256,totalMAU:21900278},{game:"Assassin's Creed Shadows",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2976931,totalMAU:14198413},{game:"The Texas Chain Saw Massacre",genre:"Adventure",orientation:"Team Competition",peakMAU:2973194,totalMAU:15251892},{game:"Megabonk",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2964952,totalMAU:7241569},{game:"Chained Together",genre:"Platformer",orientation:"Co-op Friendslop",peakMAU:2963531,totalMAU:10003556},{game:"Avowed",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2929742,totalMAU:6662470},{game:"FragPunk",genre:"Shooter",orientation:"Team Competition",peakMAU:2929547,totalMAU:10739557},{game:"ARK: Survival Ascended",genre:"Adventure",orientation:"Parallel Progression",peakMAU:2906148,totalMAU:25743761},{game:"PAYDAY 3",genre:"Shooter",orientation:"Co-op PvE",peakMAU:2887473,totalMAU:12746151},{game:"Ghost of Yotei",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2851960,totalMAU:6354372},{game:"It Takes Two",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:2840940,totalMAU:43084144},{game:"Farming Simulator 22",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:2823382,totalMAU:40170730},{game:"High on Life",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2774439,totalMAU:14679405},{game:"Sifu",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2745894,totalMAU:17448183},{game:"EA SPORTS Madden NFL 26",genre:"Sports",orientation:"Solo Competition",peakMAU:2744223,totalMAU:11386975},{game:"Assassin's Creed Mirage",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2717591,totalMAU:21575004},{game:"Assassin's Creed Valhalla",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2682244,totalMAU:49563203},{game:"Dragon's Dogma 2",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2678481,totalMAU:10253383},{game:"Wo Long: Fallen Dynasty",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2678477,totalMAU:7779573},{game:"Minecraft Dungeons",genre:"Role Playing",orientation:"Co-op Friendslop",peakMAU:2671038,totalMAU:18483327},{game:"Need for Speed Hot Pursuit Remastered",genre:"Racing",orientation:"Solo Competition",peakMAU:2663122,totalMAU:9349404},{game:"NHL 24",genre:"Sports",orientation:"Solo Competition",peakMAU:2658784,totalMAU:17951620},{game:"Wuthering Waves",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:2643292,totalMAU:26986466},{game:"Armored Core VI: Fires of Rubicon",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:2570017,totalMAU:10562883},{game:"Grounded 2",genre:"Adventure",orientation:"Co-op PvE",peakMAU:2520824,totalMAU:5463821},{game:"Remnant II",genre:"Role Playing",orientation:"Co-op PvE",peakMAU:2507889,totalMAU:16127655},{game:"EA SPORTS College Football 26",genre:"Sports",orientation:"Solo Competition",peakMAU:2500566,totalMAU:12930252},{game:"Forza Motorsport (2023)",genre:"Racing",orientation:"Solo Competition",peakMAU:2497698,totalMAU:16598265},{game:"Tony Hawk's Pro Skater 3 + 4",genre:"Sports",orientation:"Singleplayer Fixed",peakMAU:2454916,totalMAU:4263145},{game:"eFootball",genre:"Sports",orientation:"Solo Competition",peakMAU:2413716,totalMAU:53207401},{game:"Lies of P",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2389960,totalMAU:13907469},{game:"Hell Let Loose",genre:"Shooter",orientation:"Team Competition",peakMAU:2389677,totalMAU:31087835},{game:"MLB The Show 24",genre:"Sports",orientation:"Solo Competition",peakMAU:2371280,totalMAU:22580790},{game:"LEGO Star Wars: The Skywalker Saga",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2362794,totalMAU:22205066},{game:"Totally Accurate Battle Simulator",genre:"Strategy",orientation:"Singleplayer Fixed",peakMAU:2346865,totalMAU:10826380},{game:"Mortal Kombat 1",genre:"Fighting",orientation:"Solo Competition",peakMAU:2345086,totalMAU:37875049},{game:"RV There Yet?",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:2334513,totalMAU:6126270},{game:"Dispatch (2025)",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2269465,totalMAU:3944861},{game:"Suicide Squad: Kill the Justice League",genre:"Adventure",orientation:"Co-op PvE",peakMAU:2264836,totalMAU:8169056},{game:"Redfall",genre:"Shooter",orientation:"Co-op PvE",peakMAU:2259723,totalMAU:3833687},{game:"FINAL FANTASY XVI",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2251922,totalMAU:12543604},{game:"Honkai: Star Rail",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:2248938,totalMAU:52512669},{game:"RoboCop: Rogue City",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:2248474,totalMAU:8241071},{game:"Skull and Bones",genre:"Adventure",orientation:"Parallel Progression",peakMAU:2241945,totalMAU:9003555},{game:"Ghost of Tsushima",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2209788,totalMAU:48033488},{game:"Deep Rock Galactic",genre:"Shooter",orientation:"Co-op PvE",peakMAU:2194917,totalMAU:40103278},{game:"MLB The Show 23",genre:"Sports",orientation:"Solo Competition",peakMAU:2184237,totalMAU:20107661},{game:"Party Animals",genre:"Fighting",orientation:"Solo Competition",peakMAU:2170659,totalMAU:14833592},{game:"Astro's Playroom",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:2138122,totalMAU:50081621},{game:"PGA Tour 2K23",genre:"Sports",orientation:"Solo Competition",peakMAU:2137115,totalMAU:18179805},{game:"Stray",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2123751,totalMAU:8937931},{game:"Gotham Knights",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2123262,totalMAU:11424675},{game:"Goat Simulator 3",genre:"Sandbox",orientation:"Co-op Friendslop",peakMAU:2108817,totalMAU:13682819},{game:"Street Fighter 6",genre:"Fighting",orientation:"Solo Competition",peakMAU:2107125,totalMAU:29608633},{game:"Dark and Darker",genre:"Role Playing",orientation:"Team Competition",peakMAU:2093586,totalMAU:8173850},{game:"Evil West",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:2082373,totalMAU:6411235},{game:"Gears of War: Reloaded",genre:"Shooter",orientation:"Team Competition",peakMAU:2079404,totalMAU:5995366},{game:"Farlight 84",genre:"Shooter",orientation:"Solo Competition",peakMAU:2075926,totalMAU:6080693},{game:"WWE 2K22",genre:"Fighting",orientation:"Solo Competition",peakMAU:2073590,totalMAU:11158391},{game:"Dead Space (2023)",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:2058468,totalMAU:14518303},{game:"Kingdom Come: Deliverance II",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:2054663,totalMAU:9792824},{game:"Satisfactory",genre:"Simulation",orientation:"Co-op Friendslop",peakMAU:2035850,totalMAU:18534699},{game:"Banana (2024)",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:2027107,totalMAU:5051144},{game:"NARAKA: BLADEPOINT",genre:"Fighting",orientation:"Solo Competition",peakMAU:2016827,totalMAU:11495359},{game:"MONSTER HUNTER RISE",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:1991959,totalMAU:21447331},{game:"Warhammer 40,000: Darktide",genre:"Shooter",orientation:"Co-op PvE",peakMAU:1940361,totalMAU:17747941},{game:"Halo: Infinite",genre:"Shooter",orientation:"Team Competition",peakMAU:1929874,totalMAU:42990382},{game:"Jurassic World Evolution 2",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1918320,totalMAU:13572860},{game:"Dying Light: The Beast",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1865267,totalMAU:5145681},{game:"Tekken 8",genre:"Fighting",orientation:"Solo Competition",peakMAU:1856515,totalMAU:23709276},{game:"The Lord of the Rings: Return to Moria",genre:"Adventure",orientation:"Co-op PvE",peakMAU:1837753,totalMAU:6584398},{game:"GRID Legends",genre:"Racing",orientation:"Solo Competition",peakMAU:1832308,totalMAU:5971587},{game:"Disney Speedstorm",genre:"Racing",orientation:"Solo Competition",peakMAU:1828402,totalMAU:10860288},{game:"Valheim",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:1825843,totalMAU:32100666},{game:"Stranded Deep",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:1797905,totalMAU:10721353},{game:"Sniper Elite: Resistance",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:1776505,totalMAU:4520518},{game:"Mafia: Definitive Edition",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1764644,totalMAU:14306067},{game:"Buckshot Roulette",genre:"Puzzle",orientation:"Solo Competition",peakMAU:1752987,totalMAU:9617134},{game:"Star Wars Outlaws",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1725383,totalMAU:7658107},{game:"Sackboy: A Big Adventure",genre:"Platformer",orientation:"Co-op Friendslop",peakMAU:1711533,totalMAU:12897902},{game:"NBA 2K22",genre:"Sports",orientation:"Solo Competition",peakMAU:1696115,totalMAU:16851407},{game:"Minecraft Legends",genre:"Strategy",orientation:"Co-op Friendslop",peakMAU:1693054,totalMAU:6181408},{game:"F1 22",genre:"Racing",orientation:"Solo Competition",peakMAU:1668687,totalMAU:13109253},{game:"Madden NFL 22",genre:"Sports",orientation:"Solo Competition",peakMAU:1655088,totalMAU:10820405},{game:"The Last of Us Part II",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1652898,totalMAU:27299030},{game:"The Callisto Protocol",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1637287,totalMAU:7403823},{game:"Hot Wheels Unleashed 2: Turbocharged",genre:"Racing",orientation:"Solo Competition",peakMAU:1629347,totalMAU:5224955},{game:"Five Nights at Freddy's: Security Breach",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1602571,totalMAU:7566346},{game:"Gran Turismo 7",genre:"Racing",orientation:"Solo Competition",peakMAU:1560731,totalMAU:42294213},{game:"Alan Wake 2",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1560611,totalMAU:13840667},{game:"WWE 2K25",genre:"Fighting",orientation:"Solo Competition",peakMAU:1530388,totalMAU:10652919},{game:"LEGO 2K Drive",genre:"Racing",orientation:"Solo Competition",peakMAU:1519726,totalMAU:5050336},{game:"Police Simulator: Patrol Officers",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1515278,totalMAU:13533430},{game:"Final Fantasy VII Rebirth",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1490622,totalMAU:10259980},{game:"Need for Speed Unbound",genre:"Racing",orientation:"Solo Competition",peakMAU:1461655,totalMAU:24918340},{game:"Farming Simulator 25",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1448820,totalMAU:12958175},{game:"MLB The Show 25",genre:"Sports",orientation:"Solo Competition",peakMAU:1443321,totalMAU:11624861},{game:"Vampire Survivors",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1430038,totalMAU:24133327},{game:"Avatar: Frontiers of Pandora",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1426780,totalMAU:8501990},{game:"EA Sports WRC",genre:"Racing",orientation:"Solo Competition",peakMAU:1381517,totalMAU:5608149},{game:"Little Nightmares II",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:1377883,totalMAU:5801458},{game:"Dragon Age: The Veilguard",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1373101,totalMAU:6043250},{game:"Back 4 Blood",genre:"Shooter",orientation:"Co-op PvE",peakMAU:1356915,totalMAU:10440627},{game:"Dying Light 2 Stay Human",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1351489,totalMAU:28192641},{game:"Hot Wheels Unleashed",genre:"Racing",orientation:"Solo Competition",peakMAU:1339184,totalMAU:7797513},{game:"Enshrouded",genre:"Adventure",orientation:"Co-op PvE",peakMAU:1336946,totalMAU:8801789},{game:"Aliens: Fireteam Elite",genre:"Shooter",orientation:"Co-op PvE",peakMAU:1331673,totalMAU:5077057},{game:"Watch Dogs: Legion",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1316637,totalMAU:14905164},{game:"My First Gran Turismo",genre:"Racing",orientation:"Singleplayer Fixed",peakMAU:1315901,totalMAU:4096761},{game:"Riders Republic",genre:"Sports",orientation:"Solo Competition",peakMAU:1315758,totalMAU:18446892},{game:"Horizon Forbidden West",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1312743,totalMAU:17259488},{game:"Arena Breakout: Infinite",genre:"Shooter",orientation:"Team Competition",peakMAU:1299696,totalMAU:3743255},{game:"F1 24",genre:"Racing",orientation:"Solo Competition",peakMAU:1298539,totalMAU:13184032},{game:"UFL",genre:"Sports",orientation:"Solo Competition",peakMAU:1283886,totalMAU:5877953},{game:"Umamusume: Pretty Derby",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:1266986,totalMAU:4441691},{game:"TCG Card Shop Simulator",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1266531,totalMAU:4516743},{game:"Grand Theft Auto: The Trilogy ‚Äì The Definitive Edition",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1245471,totalMAU:17018120},{game:"Stellar Blade",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1238846,totalMAU:9324141},{game:"V Rising",genre:"Adventure",orientation:"Parallel Progression",peakMAU:1236301,totalMAU:10538470},{game:"The Last of Us Part I",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1217157,totalMAU:15671792},{game:"Alan Wake Remastered",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1210160,totalMAU:5091867},{game:"SUPERVIVE",genre:"Battle Arena",orientation:"Solo Competition",peakMAU:1210110,totalMAU:3705738},{game:"Ghostwire: Tokyo",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1197909,totalMAU:5344102},{game:"Hades II",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1194563,totalMAU:7250371},{game:"Halls of Torment",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1190658,totalMAU:3938160},{game:"Doom Eternal",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:1184737,totalMAU:16233448},{game:"Microsoft Flight Simulator 2024",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1183000,totalMAU:6251312},{game:"Silent Hill 2 (2024)",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1178191,totalMAU:7668457},{game:"Supermarket Simulator (2025)",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1174839,totalMAU:7071622},{game:"Abiotic Factor",genre:"Adventure",orientation:"Co-op PvE",peakMAU:1151289,totalMAU:6879966},{game:"Animal Crossing: New Horizons",genre:"Strategy",orientation:"Parallel Progression",peakMAU:1147875,totalMAU:8506581},{game:"TrackMania (2020)",genre:"Racing",orientation:"Solo Competition",peakMAU:1145676,totalMAU:11778888},{game:"Dave the Diver",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1126065,totalMAU:8264615},{game:"Last Epoch",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:1122665,totalMAU:6079430},{game:"Diablo II: Resurrected",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:1120220,totalMAU:13636164},{game:"Arma Reforger",genre:"Shooter",orientation:"Team Competition",peakMAU:1117775,totalMAU:13818018},{game:"Tower of Fantasy",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:1104887,totalMAU:6589850},{game:"SMITE 2",genre:"Battle Arena",orientation:"Team Competition",peakMAU:1101410,totalMAU:7178016},{game:"Golf With Your Friends",genre:"Sports",orientation:"Solo Competition",peakMAU:1098985,totalMAU:26022776},{game:"A Plague Tale: Requiem",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1082062,totalMAU:4004069},{game:"Grounded",genre:"Adventure",orientation:"Co-op PvE",peakMAU:1071980,totalMAU:22168095},{game:"Persona 3 Reload",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1067694,totalMAU:6416854},{game:"FIFA 21",genre:"Sports",orientation:"Solo Competition",peakMAU:1067078,totalMAU:16862459},{game:"NHL 23",genre:"Sports",orientation:"Solo Competition",peakMAU:1056042,totalMAU:11862516},{game:"Hitman World of Assassination",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1053224,totalMAU:28447550},{game:"Blue Prince",genre:"Puzzle",orientation:"Singleplayer Fixed",peakMAU:1038506,totalMAU:3670238},{game:"Core Keeper",genre:"Sandbox",orientation:"Co-op Friendslop",peakMAU:1027291,totalMAU:6104212},{game:"Factorio",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:1020866,totalMAU:14841360},{game:"Hades",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1019923,totalMAU:13056688},{game:"Cult of the Lamb",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1016711,totalMAU:10792467},{game:"Yu-Gi-Oh! Master Duel",genre:"Card Battle",orientation:"Solo Competition",peakMAU:1011148,totalMAU:26490266},{game:"Little Kitty, Big City",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:1005282,totalMAU:4286508},{game:"Lords of the Fallen (2023)",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:1001715,totalMAU:7966847},{game:"Marvel's Spider-Man Remastered",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:996839,totalMAU:14611371},{game:"Tiny Tina's Wonderlands",genre:"Shooter",orientation:"Grindy Singleplayer",peakMAU:978642,totalMAU:12625969},{game:"Metaphor: ReFantazio",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:978251,totalMAU:4986022},{game:"WWE 2K23",genre:"Fighting",orientation:"Solo Competition",peakMAU:971110,totalMAU:14221786},{game:"SnowRunner",genre:"Simulation",orientation:"Co-op Friendslop",peakMAU:969762,totalMAU:21264009},{game:"Car Mechanic Simulator 2021",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:968589,totalMAU:9551658},{game:"F1 25",genre:"Racing",orientation:"Solo Competition",peakMAU:965197,totalMAU:5332461},{game:"Teardown",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:961999,totalMAU:9106034},{game:"Escape From Tarkov Arena",genre:"Shooter",orientation:"Team Competition",peakMAU:951449,totalMAU:10767008},{game:"Brotato",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:947010,totalMAU:15811817},{game:"NHL 25",genre:"Sports",orientation:"Solo Competition",peakMAU:924549,totalMAU:9084025},{game:"Hi-Fi Rush",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:917565,totalMAU:4261281},{game:"ASTRO BOT",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:907412,totalMAU:8840205},{game:"Sonic Frontiers",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:890811,totalMAU:7458475},{game:"Predecessor",genre:"Battle Arena",orientation:"Team Competition",peakMAU:872421,totalMAU:5636094},{game:"Mount & Blade II: Bannerlord",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:862386,totalMAU:20799593},{game:"Raft",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:850624,totalMAU:17568329},{game:"MLB The Show 22",genre:"Sports",orientation:"Solo Competition",peakMAU:846630,totalMAU:5823806},{game:"Deep Rock Galactic: Survivor",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:842061,totalMAU:6065341},{game:"Squad",genre:"Shooter",orientation:"Team Competition",peakMAU:835411,totalMAU:21951037},{game:"New World: Aeternum",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:831150,totalMAU:11274362},{game:"Final Fantasy VII Remake",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:793427,totalMAU:9728635},{game:"SpongeBob SquarePants: Battle for Bikini Bottom Rehydrated",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:788744,totalMAU:7005340},{game:"EA Sports PGA Tour",genre:"Sports",orientation:"Solo Competition",peakMAU:777786,totalMAU:9505843},{game:"Another Crab's Treasure",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:775808,totalMAU:3718526},{game:"Undisputed",genre:"Fighting",orientation:"Solo Competition",peakMAU:765208,totalMAU:8145688},{game:"Call of Duty: Vanguard",genre:"Shooter",orientation:"Team Competition",peakMAU:756081,totalMAU:11897098},{game:"Resident Evil 3",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:754374,totalMAU:9675601},{game:"Microsoft Flight Simulator",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:744464,totalMAU:18805625},{game:"Total War: Warhammer III",genre:"Strategy",orientation:"Singleplayer Fixed",peakMAU:738685,totalMAU:14509166},{game:"Teenage Mutant Ninja Turtles: Shredder's Revenge",genre:"Fighting",orientation:"Co-op Friendslop",peakMAU:719094,totalMAU:11690467},{game:"Sniper Elite 5",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:695143,totalMAU:10515359},{game:"Palia",genre:"Simulation",orientation:"Parallel Progression",peakMAU:682430,totalMAU:4445082},{game:"Crusader Kings III",genre:"Strategy",orientation:"Singleplayer Fixed",peakMAU:678794,totalMAU:16001936},{game:"GUILTY GEAR -STRIVE-",genre:"Fighting",orientation:"Solo Competition",peakMAU:674969,totalMAU:11310545},{game:"Gunfire Reborn",genre:"Shooter",orientation:"Co-op Friendslop",peakMAU:674416,totalMAU:7979292},{game:"Aimlabs",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:673538,totalMAU:15998743},{game:"Crime Boss: Rockay City",genre:"Shooter",orientation:"Co-op PvE",peakMAU:654304,totalMAU:3639228},{game:"Ratchet & Clank: Rift Apart",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:643117,totalMAU:9382140},{game:"Enlisted",genre:"Shooter",orientation:"Team Competition",peakMAU:640015,totalMAU:17233918},{game:"Wobbly Life",genre:"Sandbox",orientation:"Co-op Friendslop",peakMAU:630864,totalMAU:5114567},{game:"Cities: Skylines II",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:626289,totalMAU:5936902},{game:"Rise of the Ronin",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:611172,totalMAU:4038179},{game:"Resident Evil Village",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:603622,totalMAU:12162040},{game:"Session: Skate Sim",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:590657,totalMAU:5838496},{game:"Tom Clancy's Rainbow Six Extraction",genre:"Shooter",orientation:"Co-op PvE",peakMAU:575849,totalMAU:5869995},{game:"GIRLS' FRONTLINE 2: EXILIUM",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:575092,totalMAU:3609491},{game:"Wild Hearts",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:574163,totalMAU:3811612},{game:"Maneater",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:571114,totalMAU:6155374},{game:"Marvel's Avengers",genre:"Adventure",orientation:"Co-op PvE",peakMAU:570929,totalMAU:6204035},{game:"Rogue Company",genre:"Shooter",orientation:"Team Competition",peakMAU:566722,totalMAU:9538012},{game:"Football Manager 2024",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:566135,totalMAU:8744127},{game:"The Quarry",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:562633,totalMAU:6125721},{game:"Mass Effect: Legendary Edition",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:560039,totalMAU:8064771},{game:"Deceit 2",genre:"Adventure",orientation:"Team Competition",peakMAU:557918,totalMAU:3908954},{game:"Dredge",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:551411,totalMAU:4842428},{game:"Crash Bandicoot 4: It's About Time",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:549447,totalMAU:8915402},{game:"Marvel's Midnight Suns",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:529311,totalMAU:4453060},{game:"PlateUp!",genre:"Simulation",orientation:"Co-op Friendslop",peakMAU:519805,totalMAU:9287137},{game:"Inscryption",genre:"Card Battle",orientation:"Singleplayer Fixed",peakMAU:518465,totalMAU:4937288},{game:"GTFO",genre:"Shooter",orientation:"Co-op PvE",peakMAU:508805,totalMAU:4367726},{game:"OUTRIDERS",genre:"Shooter",orientation:"Co-op PvE",peakMAU:501892,totalMAU:3798119},{game:"DEVOUR",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:496197,totalMAU:6063672},{game:"PGA TOUR 2K25",genre:"Sports",orientation:"Solo Competition",peakMAU:486813,totalMAU:4075697},{game:"NBA 2K21",genre:"Sports",orientation:"Solo Competition",peakMAU:480803,totalMAU:5163274},{game:"Marvel Snap",genre:"Card Battle",orientation:"Solo Competition",peakMAU:476297,totalMAU:4655970},{game:"STALCRAFT: X",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:455560,totalMAU:6668735},{game:"Kena: Bridge of Spirits",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:455234,totalMAU:4360191},{game:"Bluey: The Videogame",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:449556,totalMAU:6306029},{game:"Age of Empires IV",genre:"Strategy",orientation:"Team Competition",peakMAU:448296,totalMAU:5325406},{game:"Construction Simulator",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:446437,totalMAU:4804904},{game:"Madden NFL 21",genre:"Sports",orientation:"Solo Competition",peakMAU:444218,totalMAU:4825778},{game:"F1 2021",genre:"Racing",orientation:"Solo Competition",peakMAU:437542,totalMAU:4646625},{game:"Demon Slayer -Kimetsu no Yaiba- The Hinokami Chronicles",genre:"Fighting",orientation:"Solo Competition",peakMAU:435956,totalMAU:6650438},{game:"Goose Goose Duck",genre:"Arcade",orientation:"Team Competition",peakMAU:435380,totalMAU:7401239},{game:"Escape the Backrooms",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:430730,totalMAU:7614859},{game:"Disney Dreamlight Valley",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:416112,totalMAU:10643813},{game:"Tony Hawk's Pro Skater 1 + 2",genre:"Sports",orientation:"Singleplayer Fixed",peakMAU:412253,totalMAU:8765553},{game:"Barotrauma",genre:"Simulation",orientation:"Co-op Friendslop",peakMAU:408763,totalMAU:7515597},{game:"Medieval Dynasty",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:386317,totalMAU:5564614},{game:"Immortals Fenyx Rising",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:375846,totalMAU:5157661},{game:"TopSpin 2K25",genre:"Sports",orientation:"Solo Competition",peakMAU:370993,totalMAU:4174543},{game:"NARUTO X BORUTO Ultimate Ninja STORM CONNECTIONS",genre:"Fighting",orientation:"Solo Competition",peakMAU:370768,totalMAU:3976217},{game:"Marvel's Guardians of the Galaxy",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:349080,totalMAU:4784713},{game:"ULTRAKILL",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:336756,totalMAU:6738448},{game:"Nioh 2",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:336740,totalMAU:4535953},{game:"Demon's Souls (2020)",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:329606,totalMAU:7658008},{game:"Slime Rancher 2",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:318317,totalMAU:4650300},{game:"Uncharted: Legacy of Thieves Collection",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:315934,totalMAU:7398650},{game:"Overcooked! All You Can Eat",genre:"Arcade",orientation:"Co-op Friendslop",peakMAU:315177,totalMAU:5288893},{game:"SCUM",genre:"Adventure",orientation:"Parallel Progression",peakMAU:312741,totalMAU:4384581},{game:"One Piece: Pirate Warriors 4",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:305355,totalMAU:4058968},{game:"Vampire: The Masquerade - Bloodhunt",genre:"Shooter",orientation:"Solo Competition",peakMAU:296551,totalMAU:5150216},{game:"eFootball PES 2021 Season Update",genre:"Sports",orientation:"Solo Competition",peakMAU:291742,totalMAU:7393013},{game:"Noita",genre:"Role Playing",orientation:"Singleplayer Fixed",peakMAU:283691,totalMAU:6141855},{game:"My Friend Peppa Pig",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:281283,totalMAU:4306854},{game:"Muck",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:278060,totalMAU:4482392},{game:"Unpacking",genre:"Puzzle",orientation:"Singleplayer Fixed",peakMAU:272044,totalMAU:4313290},{game:"Returnal",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:271927,totalMAU:4758617},{game:"Victoria 3",genre:"Strategy",orientation:"Singleplayer Fixed",peakMAU:260163,totalMAU:5348627},{game:"Limbus Company",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:243489,totalMAU:4997756},{game:"MX vs. ATV: Legends",genre:"Racing",orientation:"Solo Competition",peakMAU:229645,totalMAU:5287527},{game:"Eternal Return (2023)",genre:"Battle Arena",orientation:"Solo Competition",peakMAU:223990,totalMAU:4359613},{game:"Legends of Runeterra",genre:"Card Battle",orientation:"Solo Competition",peakMAU:223373,totalMAU:3960508},{game:"Dirt 5",genre:"Racing",orientation:"Solo Competition",peakMAU:219479,totalMAU:3846749},{game:"Super Animal Royale",genre:"Shooter",orientation:"Solo Competition",peakMAU:205752,totalMAU:4118874},{game:"Call of Duty: Modern Warfare 2 Campaign Remastered",genre:"Shooter",orientation:"Singleplayer Fixed",peakMAU:197946,totalMAU:5104184},{game:"PC Building Simulator 2",genre:"Simulation",orientation:"Singleplayer Fixed",peakMAU:176763,totalMAU:3927727},{game:"Escape Simulator",genre:"Puzzle",orientation:"Co-op Friendslop",peakMAU:166400,totalMAU:3728299},{game:"ROUNDS",genre:"Arcade",orientation:"Solo Competition",peakMAU:159554,totalMAU:4462661}];
+const robloxAggregate={"Adventure":{"Co-op Friendslop":297418,"Co-op PvE":258704,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":9029,"Solo Competition":57790,"Team Competition":6670},"Arcade":{"Co-op Friendslop":5334,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":377057,"Singleplayer Fixed":12814,"Solo Competition":265347,"Team Competition":0},"Battle Arena":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":0,"Team Competition":0},"Card Battle":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":0,"Team Competition":0},"Casino":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":0,"Team Competition":0},"Fighting":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":236360,"Team Competition":50059},"Music":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":0,"Team Competition":0},"Platformer":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":237201,"Solo Competition":12733,"Team Competition":0},"Puzzle":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":13963,"Solo Competition":16511,"Team Competition":0},"Racing":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":47383,"Singleplayer Fixed":0,"Solo Competition":22090,"Team Competition":0},"Role Playing":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":892409,"Parallel Progression":472508,"Singleplayer Fixed":0,"Solo Competition":13387,"Team Competition":0},"Sandbox":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":95878,"Singleplayer Fixed":0,"Solo Competition":10979,"Team Competition":0},"Shooter":{"Co-op Friendslop":0,"Co-op PvE":6098,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":64983,"Team Competition":266834},"Simulation":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":313980,"Parallel Progression":899509,"Singleplayer Fixed":0,"Solo Competition":88345,"Team Competition":0},"Sports":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":6141,"Team Competition":49222},"Strategy":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":121506,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":9986,"Team Competition":22832},"Tabletop":{"Co-op Friendslop":0,"Co-op PvE":0,"Grindy Singleplayer":0,"Parallel Progression":0,"Singleplayer Fixed":0,"Solo Competition":0,"Team Competition":0}};
+const robloxGames=[{game:"[🍬] Adopt Me!",genre:"Simulation",orientation:"Parallel Progression",peakMAU:479356,totalMAU:479356},{game:"[🌙Moon Update⚔️] Sailor Piece",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:477358,totalMAU:477358},{game:"[🥚] Blox Fruits",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:331375,totalMAU:331375},{game:"Brookhaven 🏡RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:308295,totalMAU:308295},{game:"RIVALS",genre:"Shooter",orientation:"Team Competition",peakMAU:233355,totalMAU:233355},{game:"[🐇] 99 Nights in the Forest 🔦",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:207954,totalMAU:207954},{game:"[UPD🐰] Fish It! 🐟",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:204569,totalMAU:204569},{game:"Steal a Brainrot",genre:"Arcade",orientation:"Parallel Progression",peakMAU:184262,totalMAU:184262},{game:"Murder Mystery 2",genre:"Arcade",orientation:"Solo Competition",peakMAU:138039,totalMAU:138039},{game:"Jujutsu Shenanigans",genre:"Fighting",orientation:"Solo Competition",peakMAU:112157,totalMAU:112157},{game:"[🐰] Grow a Garden 🌶️",genre:"Simulation",orientation:"Parallel Progression",peakMAU:111126,totalMAU:111126},{game:"[🎭 QOL] Bite By Night",genre:"Adventure",orientation:"Co-op PvE",peakMAU:88842,totalMAU:88842},{game:"Be a Lucky Block",genre:"Arcade",orientation:"Parallel Progression",peakMAU:87468,totalMAU:87468},{game:"Dress To Impress💗",genre:"Simulation",orientation:"Solo Competition",peakMAU:66766,totalMAU:66766},{game:"🌷 Dandy's World [ALPHA]",genre:"Adventure",orientation:"Co-op PvE",peakMAU:62602,totalMAU:62602},{game:"Escape Tsunami For Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:59736,totalMAU:59736},{game:"The Strongest Battlegrounds",genre:"Fighting",orientation:"Solo Competition",peakMAU:59577,totalMAU:59577},{game:"Sol's RNG[ Eon67 ]",genre:"Simulation",orientation:"Parallel Progression",peakMAU:58086,totalMAU:58086},{game:"Bee Swarm Simulator",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:52160,totalMAU:52160},{game:"[💄] Catalog Avatar Creator",genre:"Sandbox",orientation:"Parallel Progression",peakMAU:50502,totalMAU:50502},{game:"[UPD 🍞] Forsaken",genre:"Adventure",orientation:"Solo Competition",peakMAU:46597,totalMAU:46597},{game:"Be a Brainrot",genre:"Arcade",orientation:"Parallel Progression",peakMAU:36188,totalMAU:36188},{game:"Fling Things and People",genre:"Fighting",orientation:"Solo Competition",peakMAU:35465,totalMAU:35465},{game:"🍀 Pet Simulator 99! 🍀",genre:"Simulation",orientation:"Parallel Progression",peakMAU:34358,totalMAU:34358},{game:"Dead Rails [Beta]",genre:"Adventure",orientation:"Co-op PvE",peakMAU:33373,totalMAU:33373},{game:"[🐰EASTER] Re:Rangers X",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:32075,totalMAU:32075},{game:"Violence District",genre:"Shooter",orientation:"Solo Competition",peakMAU:29556,totalMAU:29556},{game:"Evade",genre:"Adventure",orientation:"Co-op PvE",peakMAU:29437,totalMAU:29437},{game:"[🌑UPD 11.5🌑] Anime Vanguards",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:27818,totalMAU:27818},{game:"LifeTogether 🏠 RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:25492,totalMAU:25492},{game:"[🥚] King Legacy",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:25426,totalMAU:25426},{game:"[UPD] 🧟 Survive the Apocalypse",genre:"Adventure",orientation:"Co-op PvE",peakMAU:25351,totalMAU:25351},{game:"Fisch 🐰 [EASTER]",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:24438,totalMAU:24438},{game:"Berry Avenue 🏠 RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:23164,totalMAU:23164},{game:"Volleyball Legends",genre:"Sports",orientation:"Team Competition",peakMAU:21781,totalMAU:21781},{game:"🐣 Creatures of Sonaria 🐇 Survive Kaiju Animals",genre:"Simulation",orientation:"Solo Competition",peakMAU:21579,totalMAU:21579},{game:"[EGG HUNT] Driving Empire🏎️ Car Racing",genre:"Racing",orientation:"Parallel Progression",peakMAU:21566,totalMAU:21566},{game:"Scary Shawarma Kiosk: the ANOMALY [horror]",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:20776,totalMAU:20776},{game:"[🥚] Knockout! 🐧",genre:"Arcade",orientation:"Solo Competition",peakMAU:20682,totalMAU:20682},{game:"[🥚] Catch a Monster",genre:"Simulation",orientation:"Parallel Progression",peakMAU:20256,totalMAU:20256},{game:"MMV",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:19964,totalMAU:19964},{game:"[🐰EASTER]🔥Hypershot",genre:"Shooter",orientation:"Team Competition",peakMAU:19867,totalMAU:19867},{game:"[UPD] All Star Tower Defense",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:18514,totalMAU:18514},{game:"Skateboard for Brainrots",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:16545,totalMAU:16545},{game:"[🐰DUELS] Murderers VS Sheriffs",genre:"Fighting",orientation:"Team Competition",peakMAU:16497,totalMAU:16497},{game:"Swing Obby for Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:16421,totalMAU:16421},{game:"[🐰DUELS] Murderers VS Sheriffs",genre:"Fighting",orientation:"Team Competition",peakMAU:16278,totalMAU:16278},{game:"[🐰+ 2X] Aura Ascension",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:16046,totalMAU:16046},{game:"[🎉] PLS DONATE 💸",genre:"Sandbox",orientation:"Parallel Progression",peakMAU:16013,totalMAU:16013},{game:"[🐰] Welcome to Bloxburg",genre:"Simulation",orientation:"Parallel Progression",peakMAU:15682,totalMAU:15682},{game:"(LIMITED x BIG UPDATE ✨) Drag Drive Simulator",genre:"Racing",orientation:"Solo Competition",peakMAU:15130,totalMAU:15130},{game:"BedWars [🥚EVENT]",genre:"Strategy",orientation:"Team Competition",peakMAU:14837,totalMAU:14837},{game:"BlockSpin 🔪",genre:"Arcade",orientation:"Solo Competition",peakMAU:14741,totalMAU:14741},{game:"Pull Lucky Blocks",genre:"Arcade",orientation:"Parallel Progression",peakMAU:14091,totalMAU:14091},{game:"+1 Speed Be a Lucky Block!",genre:"Arcade",orientation:"Parallel Progression",peakMAU:13896,totalMAU:13896},{game:"🚨BARRY'S PRISON RUN! (OBBY)",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:13633,totalMAU:13633},{game:"Blade Ball",genre:"Arcade",orientation:"Solo Competition",peakMAU:13567,totalMAU:13567},{game:"Attack on Titan Revolution",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:13449,totalMAU:13449},{game:"[🐇] Anime Card Collection",genre:"Simulation",orientation:"Parallel Progression",peakMAU:13384,totalMAU:13384},{game:"Parkour For Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:13371,totalMAU:13371},{game:"Metro Life 🏡 City RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:13240,totalMAU:13240},{game:"[🍟] Restaurant Tycoon 3",genre:"Simulation",orientation:"Parallel Progression",peakMAU:12457,totalMAU:12457},{game:"3008 [2.74]",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:12099,totalMAU:12099},{game:"SpongeBob Tower Defense🍍",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:11837,totalMAU:11837},{game:"Build A Boat For Treasure",genre:"Sandbox",orientation:"Parallel Progression",peakMAU:11632,totalMAU:11632},{game:"[EASTER🐣]  Tower Defense Simulator",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:11560,totalMAU:11560},{game:"[🐰] Rebirth Champions: Ultimate",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:11155,totalMAU:11155},{game:"[⏰] Build A Plane",genre:"Sandbox",orientation:"Parallel Progression",peakMAU:11036,totalMAU:11036},{game:"bridger: WESTERN",genre:"Sandbox",orientation:"Solo Competition",peakMAU:10979,totalMAU:10979},{game:"Emergency Hamburg",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:10853,totalMAU:10853},{game:"[FPS] One Tap",genre:"Shooter",orientation:"Solo Competition",peakMAU:10821,totalMAU:10821},{game:"[🥕] Catch And Tame!",genre:"Simulation",orientation:"Parallel Progression",peakMAU:10734,totalMAU:10734},{game:"[👑 UPD 0.5 👥] Anime Overload!",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:10478,totalMAU:10478},{game:"Open Sea For Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:10311,totalMAU:10311},{game:"[🐰EASTER] Squid Game X",genre:"Arcade",orientation:"Solo Competition",peakMAU:10274,totalMAU:10274},{game:"[UPD 6.6] Anime Card Clash",genre:"Strategy",orientation:"Solo Competition",peakMAU:9986,totalMAU:9986},{game:"[🐰🥚] Garden Tower Defense 🌻",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:9969,totalMAU:9969},{game:"Run For Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:9948,totalMAU:9948},{game:"🛍️ My Avatar!",genre:"Simulation",orientation:"Parallel Progression",peakMAU:9843,totalMAU:9843},{game:"Anime Ghosts [🐰]",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:9247,totalMAU:9247},{game:"💕 Murderers vs Sheriffs 2",genre:"Fighting",orientation:"Team Competition",peakMAU:9077,totalMAU:9077},{game:"[ZOEY WEEK 🐢] KPop Demon Hunters",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:9067,totalMAU:9067},{game:"A Grabpack test [UPDATE]",genre:"Adventure",orientation:"Singleplayer Fixed",peakMAU:9029,totalMAU:9029},{game:"[🐦‍⬛] Blue Lock: Rivals",genre:"Sports",orientation:"Team Competition",peakMAU:8900,totalMAU:8900},{game:"[🐰]Build a Zoo🧁",genre:"Simulation",orientation:"Parallel Progression",peakMAU:8851,totalMAU:8851},{game:"Oil Empire🛢️",genre:"Simulation",orientation:"Parallel Progression",peakMAU:8770,totalMAU:8770},{game:"EASTER 🐰 Tap Simulator",genre:"Simulation",orientation:"Parallel Progression",peakMAU:8616,totalMAU:8616},{game:"[UPD] Ultimate Mining Tycoon",genre:"Simulation",orientation:"Parallel Progression",peakMAU:8587,totalMAU:8587},{game:"[💪] Ink Game",genre:"Arcade",orientation:"Solo Competition",peakMAU:8553,totalMAU:8553},{game:"Flee the Facility",genre:"Arcade",orientation:"Solo Competition",peakMAU:8527,totalMAU:8527},{game:"⛏️Dig to Escape",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:8520,totalMAU:8520},{game:"Bike Obby For Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:8437,totalMAU:8437},{game:"Shrink For Brainrots",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:8354,totalMAU:8354},{game:"ZOO or OOF🎯",genre:"Arcade",orientation:"Solo Competition",peakMAU:8291,totalMAU:8291},{game:"Livetopia 🏡 RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:8290,totalMAU:8290},{game:"[🌪️UPD] Southern Mudding 🚜 OffRoading",genre:"Racing",orientation:"Parallel Progression",peakMAU:8252,totalMAU:8252},{game:"Timebomb Duels [Alpha]",genre:"Arcade",orientation:"Solo Competition",peakMAU:8235,totalMAU:8235},{game:"Math for Brainrots!",genre:"Puzzle",orientation:"Singleplayer Fixed",peakMAU:8232,totalMAU:8232},{game:"[STILETTO] BloxStrike",genre:"Shooter",orientation:"Team Competition",peakMAU:8219,totalMAU:8219},{game:"Murderers VS Sheriffs DUELS",genre:"Fighting",orientation:"Team Competition",peakMAU:8207,totalMAU:8207},{game:"[WIND] Death Ball",genre:"Arcade",orientation:"Solo Competition",peakMAU:8177,totalMAU:8177},{game:"a dusty trip [🚗SHOP]",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:8177,totalMAU:8177},{game:"[♦️] The Morgue Shift",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:8121,totalMAU:8121},{game:"Secret Staycation",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:8120,totalMAU:8120},{game:"[🥦] +1 Fat To Fit",genre:"Simulation",orientation:"Parallel Progression",peakMAU:7999,totalMAU:7999},{game:"[Comanche] War Tycoon",genre:"Strategy",orientation:"Team Competition",peakMAU:7995,totalMAU:7995},{game:"Clarity Over Resonance",genre:"Fighting",orientation:"Solo Competition",peakMAU:7977,totalMAU:7977},{game:"NewSmith 🏡 RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:7950,totalMAU:7950},{game:"DOORS  [APRIL FOOLS]",genre:"Adventure",orientation:"Co-op PvE",peakMAU:7942,totalMAU:7942},{game:"[UPD] Basketball: Zero",genre:"Sports",orientation:"Team Competition",peakMAU:7935,totalMAU:7935},{game:"[🐰] Survive LAVA for Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:7893,totalMAU:7893},{game:"🐙 Raft 101 Survival",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:7851,totalMAU:7851},{game:"[FPS] Sniper Arena",genre:"Shooter",orientation:"Solo Competition",peakMAU:7702,totalMAU:7702},{game:"Prison Life",genre:"Role Playing",orientation:"Solo Competition",peakMAU:7681,totalMAU:7681},{game:"[VOID🎭] untitled boxing game 🥊",genre:"Fighting",orientation:"Solo Competition",peakMAU:7673,totalMAU:7673},{game:"[SZN] Dragon Adventures 🐉",genre:"Simulation",orientation:"Parallel Progression",peakMAU:7661,totalMAU:7661},{game:"😈🐰 Gym Star Simulator",genre:"Simulation",orientation:"Parallel Progression",peakMAU:7473,totalMAU:7473},{game:"Brainrot Evolution",genre:"Simulation",orientation:"Parallel Progression",peakMAU:7420,totalMAU:7420},{game:"TROLL Hug Tower 😁",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:7392,totalMAU:7392},{game:"Climb and Jump Tower [NEW WORLD]",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:7371,totalMAU:7371},{game:"(WEEKLY) Car Driving Indonesia",genre:"Racing",orientation:"Parallel Progression",peakMAU:7371,totalMAU:7371},{game:"🍰 Bake or Die 💀",genre:"Arcade",orientation:"Solo Competition",peakMAU:7350,totalMAU:7350},{game:"+1 double jump for Brainrots!",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:7269,totalMAU:7269},{game:"Cut Grass for Brainrots",genre:"Arcade",orientation:"Parallel Progression",peakMAU:7121,totalMAU:7121},{game:"Taxi Boss 🚖",genre:"Simulation",orientation:"Parallel Progression",peakMAU:7106,totalMAU:7106},{game:"[🥚EASTER] KAIZEN",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:6998,totalMAU:6998},{game:"Steal The Brainrot Base🧠",genre:"Arcade",orientation:"Solo Competition",peakMAU:6974,totalMAU:6974},{game:"[UPDATE🗡️] Slap Battles👏",genre:"Fighting",orientation:"Solo Competition",peakMAU:6968,totalMAU:6968},{game:"[UPDATE!]🚗Midnight Chasers: Highway Racing",genre:"Racing",orientation:"Solo Competition",peakMAU:6960,totalMAU:6960},{game:"[📊] Maple Hospital 🍂",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:6897,totalMAU:6897},{game:"[🤔] Guess My Number",genre:"Puzzle",orientation:"Solo Competition",peakMAU:6806,totalMAU:6806},{game:"[LUFFY] Anime Final Quest",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:6789,totalMAU:6789},{game:"Escape Waves For Lucky Blocks",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:6734,totalMAU:6734},{game:"[🔄] Spin a Soccer Card",genre:"Simulation",orientation:"Parallel Progression",peakMAU:6732,totalMAU:6732},{game:"[🏠] Car Suspension Test",genre:"Sandbox",orientation:"Parallel Progression",peakMAU:6695,totalMAU:6695},{game:"JAILBREAK [VIP]",genre:"Adventure",orientation:"Team Competition",peakMAU:6670,totalMAU:6670},{game:"Survive Overnight in a Mega Store",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:6652,totalMAU:6652},{game:"Tower of Hell",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:6647,totalMAU:6647},{game:"Survive Overnight in a Mega Store",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:6645,totalMAU:6645},{game:"🐰🍕Work at a Pizza Place",genre:"Simulation",orientation:"Parallel Progression",peakMAU:6614,totalMAU:6614},{game:"[🐰] +1 Health Per Click",genre:"Simulation",orientation:"Parallel Progression",peakMAU:6559,totalMAU:6559},{game:"Heroes Battlegrounds",genre:"Fighting",orientation:"Solo Competition",peakMAU:6543,totalMAU:6543},{game:"Natural Disaster Survival",genre:"Arcade",orientation:"Singleplayer Fixed",peakMAU:6517,totalMAU:6517},{game:"[✋] Gear Slap Tower",genre:"Platformer",orientation:"Solo Competition",peakMAU:6368,totalMAU:6368},{game:"[⚡] Hyper Speed Runner",genre:"Platformer",orientation:"Solo Competition",peakMAU:6365,totalMAU:6365},{game:"Rainbow Friends",genre:"Adventure",orientation:"Co-op PvE",peakMAU:6337,totalMAU:6337},{game:"Launch Plane for Brainrots",genre:"Arcade",orientation:"Singleplayer Fixed",peakMAU:6297,totalMAU:6297},{game:"Jump To Steal Lucky Blocks",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:6265,totalMAU:6265},{game:"[UPD] Break a Brainrot Egg!",genre:"Arcade",orientation:"Parallel Progression",peakMAU:6262,totalMAU:6262},{game:"Baddies 💅",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:6220,totalMAU:6220},{game:"🔪Survive the Killer!",genre:"Arcade",orientation:"Solo Competition",peakMAU:6204,totalMAU:6204},{game:"Racket Rivals",genre:"Sports",orientation:"Solo Competition",peakMAU:6141,totalMAU:6141},{game:"Guts & Blackpowder",genre:"Shooter",orientation:"Co-op PvE",peakMAU:6098,totalMAU:6098},{game:"Don’t Steal the Bobo 🐻",genre:"Arcade",orientation:"Parallel Progression",peakMAU:6075,totalMAU:6075},{game:"[⚖️JUDGEMAN] Jujutsu Infinite",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:6057,totalMAU:6057},{game:"Dreamville 🏡 RP [Kids! 👶]",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:6022,totalMAU:6022},{game:"Royale🌼High",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:6013,totalMAU:6013},{game:"Rusty Rafts",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:5975,totalMAU:5975},{game:"Hooked!",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5898,totalMAU:5898},{game:"Piggy [LOVE HEARTS ❤️]",genre:"Adventure",orientation:"Solo Competition",peakMAU:5892,totalMAU:5892},{game:"[FPS] Flick",genre:"Shooter",orientation:"Solo Competition",peakMAU:5850,totalMAU:5850},{game:"(🐰EASTER EVENT + LIMITED!) Greenville",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:5764,totalMAU:5764},{game:"The Button",genre:"Arcade",orientation:"Solo Competition",peakMAU:5733,totalMAU:5733},{game:"Guess My Brainrot",genre:"Puzzle",orientation:"Singleplayer Fixed",peakMAU:5731,totalMAU:5731},{game:"[UPD] Riot City 🚨 Prison Escape",genre:"Role Playing",orientation:"Solo Competition",peakMAU:5706,totalMAU:5706},{game:"Climb Scary Pocong Tower",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:5703,totalMAU:5703},{game:"⛏️ Break a Lucky Block!",genre:"Arcade",orientation:"Parallel Progression",peakMAU:5690,totalMAU:5690},{game:"[FREE AVA X250] Mount Sawit",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5660,totalMAU:5660},{game:"Build a Tower",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:5656,totalMAU:5656},{game:"[ 🎁 ] Cidro Janji (Jawa Party)",genre:"Arcade",orientation:"Parallel Progression",peakMAU:5628,totalMAU:5628},{game:"[🐰EASTER] Throwing Simulator🎯",genre:"Simulation",orientation:"Grindy Singleplayer",peakMAU:5612,totalMAU:5612},{game:"SNIPER DUELS",genre:"Shooter",orientation:"Solo Competition",peakMAU:5584,totalMAU:5584},{game:"Escape Running Head",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:5532,totalMAU:5532},{game:"[🥚HUNT] Knife VS Gun DUELS",genre:"Shooter",orientation:"Solo Competition",peakMAU:5470,totalMAU:5470},{game:"[🐰] +1 Speed Keyboard Escape | Candy & Chocolate",genre:"Platformer",orientation:"Singleplayer Fixed",peakMAU:5463,totalMAU:5463},{game:"[🌸PT2] Prospecting! 💎",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5422,totalMAU:5422},{game:"Realistic Street Soccer",genre:"Sports",orientation:"Team Competition",peakMAU:5395,totalMAU:5395},{game:"[🌸] SHARP",genre:"Shooter",orientation:"Team Competition",peakMAU:5393,totalMAU:5393},{game:"Insane Elevator!",genre:"Arcade",orientation:"Co-op Friendslop",peakMAU:5334,totalMAU:5334},{game:"Vacuum For Brainrots!",genre:"Arcade",orientation:"Parallel Progression",peakMAU:5306,totalMAU:5306},{game:"💀 Hide or Die!",genre:"Adventure",orientation:"Solo Competition",peakMAU:5301,totalMAU:5301},{game:"Defeat and Collect Anime",genre:"Role Playing",orientation:"Grindy Singleplayer",peakMAU:5232,totalMAU:5232},{game:"FIFA Super Soccer!",genre:"Sports",orientation:"Team Competition",peakMAU:5211,totalMAU:5211},{game:"Gacha Online ✨ RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:5205,totalMAU:5205},{game:"[🔥NEW BIKE] MX WORLD",genre:"Racing",orientation:"Parallel Progression",peakMAU:5143,totalMAU:5143},{game:"🥚EGG HUNT! Car Dealership Tycoon",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5073,totalMAU:5073},{game:"[🐰] ENTER BRAINROT HEADS",genre:"Arcade",orientation:"Parallel Progression",peakMAU:5070,totalMAU:5070},{game:"Off-Roading Epic",genre:"Racing",orientation:"Parallel Progression",peakMAU:5051,totalMAU:5051},{game:"Grace [GRACE BUT EVIL]",genre:"Adventure",orientation:"Co-op Friendslop",peakMAU:5048,totalMAU:5048},{game:"Twilight Daycare!✨RP",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:5045,totalMAU:5045},{game:"[UPD] Asylum Life 🔊",genre:"Role Playing",orientation:"Parallel Progression",peakMAU:5027,totalMAU:5027},{game:"Elemental Powers Tycoon",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5011,totalMAU:5011},{game:"[🐰EASTER] 🫧 Bubble Gum Simulator INFINITY",genre:"Simulation",orientation:"Parallel Progression",peakMAU:5003,totalMAU:5003},{game:"🎥My Movie",genre:"Simulation",orientation:"Parallel Progression",peakMAU:4990,totalMAU:4990},{game:"Speed Draw!",genre:"Puzzle",orientation:"Solo Competition",peakMAU:4881,totalMAU:4881},{game:"[🌼SPRING UPD🌼] Anime Tactical Simulator",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:4879,totalMAU:4879},{game:"Toilet Tower Defense",genre:"Strategy",orientation:"Grindy Singleplayer",peakMAU:4854,totalMAU:4854},{game:"Guess My Word",genre:"Puzzle",orientation:"Solo Competition",peakMAU:4824,totalMAU:4824},{game:"[Half A Slice Of Cake] - Pressure",genre:"Adventure",orientation:"Co-op PvE",peakMAU:4820,totalMAU:4820},{game:"[UPD] +1 Fat Per Step 🍗",genre:"Simulation",orientation:"Parallel Progression",peakMAU:4782,totalMAU:4782}];
+
+const archetypes=["Singleplayer Fixed","Grindy Singleplayer","Co-op Friendslop","Co-op PvE","Solo Competition","Team Competition","Parallel Progression"];
+const colorMap={"Singleplayer Fixed":"#d2a8ff","Grindy Singleplayer":"#ffa657","Co-op Friendslop":"#7ee787","Co-op PvE":"#3fb950","Solo Competition":"#f97583","Team Competition":"#56d4dd","Parallel Progression":"#79c0ff"};
+const archIcons={"Singleplayer Fixed":"\u{1F3AE}","Grindy Singleplayer":"\u26CF\uFE0F","Co-op Friendslop":"\u{1F91D}","Co-op PvE":"\u{1F6E1}\uFE0F","Solo Competition":"\u2694\uFE0F","Team Competition":"\u{1F3C5}","Parallel Progression":"\u{1F3D8}\uFE0F"};
+const archDescs={
+  "Singleplayer Fixed":"A complete, contained experience you play solo. You buy it, play through it, maybe finish it. PvE, solo, boxed or supported. Having optional co-op/PvP doesn\u2019t change the classification.",
+  "Grindy Singleplayer":"The grind loop IS the game. Live service keeps it evolving. You play mostly alone but co-op is fine too. The key differentiator from Singleplayer Fixed is live service delivery and no defined \u201Cend.\u201D",
+  "Co-op Friendslop":"Casual co-op fun with friends in a contained package. Co-op is the PRIMARY mode, and the game is boxed or supported (not an endless grind loop). The social bond is the point.",
+  "Co-op PvE":"Structured co-op against the game itself \u2014 AI enemies, missions, raids. Players team up to overcome PvE threats rather than compete with each other. Roles, loadouts, and coordination matter.",
+  "Solo Competition":"Individual PvP competition. Battle royales, free-for-all, one-vs-many. Usually live service. You compete as yourself, not as part of a team.",
+  "Team Competition":"Team-based PvP. Organized teams competing against each other. Usually live service. Coordination and roles within the team define the experience.",
+  "Parallel Progression":"Players progress alongside each other \u2014 not cooperating (that\u2019s Co-op), not competing (that\u2019s PvP), but existing in parallel. The social show-off element is KEY."
+};
+const archExamples={
+  "Singleplayer Fixed":["ELDEN RING","Hogwarts Legacy","Baldur's Gate 3","Starfield","Where Winds Meet"],
+  "Grindy Singleplayer":["Diablo IV","Monster Hunter Wilds","The First Descendant","Palworld","Genshin Impact"],
+  "Co-op Friendslop":["R.E.P.O.","Lethal Company","PEAK (Aggro Crab)","ELDEN RING NIGHTREIGN","Content Warning"],
+  "Co-op PvE":["HELLDIVERS 2","Warhammer 40,000: Space Marine 2","Ready or Not","The Outlast Trials","PAYDAY 3"],
+  "Solo Competition":["Call of Duty HQ","EA Sports FC 24","EA Sports FC 25","THE FINALS","Mario Kart"],
+  "Team Competition":["Marvel Rivals","Battlefield 6/REDSEC","Valorant","XDefiant","THE FINALS"],
+  "Parallel Progression":["skate. (2025)","Forza Horizon 5","The Crew Motorfest","ARK: Survival Ascended","Once Human"]
+};
+const genrePalette=["#f97583","#79c0ff","#d2a8ff","#7ee787","#ffa657","#ff7b72","#56d4dd","#e3b341","#bc8cff","#3fb950","#f778ba","#a5d6ff","#9e6a03","#388bfd","#da3633","#8b949e","#b392f0","#d29922"];
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('page-'+btn.dataset.page).classList.add('active');window.dispatchEvent(new Event('resize'))})});
+
+// Tooltip
+const tooltip=d3.select("#tooltip");
+function showTooltip(evt,colName,stackName,val,pct,unit,colLabel,stackLabel){const cl=colLabel||"Genre",sl=stackLabel||"Archetype";tooltip.style("display","block").html(`<div class="tt-genre">${colName}</div><div class="tt-row"><span class="tt-label">${sl}</span><span class="tt-val">${stackName}</span></div><div class="tt-row"><span class="tt-label">${unit}</span><span class="tt-val">${d3.format(",.0f")(val)}</span></div><div class="tt-row"><span class="tt-label">% of ${cl}</span><span class="tt-val">${d3.format(".1%")(pct)}</span></div>`);positionTooltip(evt)}
+function showGenreTooltip(evt,colName,total,grandTotal,unit){tooltip.style("display","block").html(`<div class="tt-genre">${colName}</div><div class="tt-row"><span class="tt-label">Total ${unit}</span><span class="tt-val">${d3.format(",.0f")(total)}</span></div><div class="tt-row"><span class="tt-label">Share</span><span class="tt-val">${d3.format(".1%")(total/grandTotal)}</span></div>`);positionTooltip(evt)}
+function transposeAggregate(agg){const out={};for(const[col,sub]of Object.entries(agg)){for(const[row,v]of Object.entries(sub||{})){if(!out[row])out[row]={};out[row][col]=v}}return out}
+function positionTooltip(evt){const tt=document.getElementById("tooltip");let x=evt.clientX+14,y=evt.clientY-10;const r=tt.getBoundingClientRect();if(x+r.width+8>window.innerWidth)x=evt.clientX-r.width-10;if(y+r.height+8>window.innerHeight)y=evt.clientY-r.height-10;tooltip.style("left",x+"px").style("top",y+"px")}
+function hideTooltip(){tooltip.style("display","none")}
+
+// Drill-down modal
+const overlay=d3.select("#modal-overlay");
+d3.select("#modal-close").on("click",closeModal);
+overlay.on("click",evt=>{if(evt.target===document.getElementById("modal-overlay"))closeModal()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeModal();closeFS()}});
+function closeModal(){overlay.classed("open",false)}
+function openDrillDown(genre,orientation,gamesArr,metricLabel){
+  let filtered,titleText;
+  if(genre&&orientation){filtered=gamesArr.filter(d=>d.genre===genre&&d.orientation===orientation);titleText=`${genre} \u2014 ${orientation}`}
+  else if(genre){filtered=gamesArr.filter(d=>d.genre===genre);titleText=`${genre} \u2014 All Archetypes`}
+  else if(orientation){filtered=gamesArr.filter(d=>d.orientation===orientation);titleText=`All Genres \u2014 ${orientation}`}
+  else{filtered=[...gamesArr];titleText="All Titles"}
+  filtered.sort((a,b)=>b.peakMAU-a.peakMAU);const top=filtered.slice(0,20);
+  const mT=d3.select("#modal-title"),mS=d3.select("#modal-subtitle"),mSvg=d3.select("#modal-chart-area");
+  if(!top.length){mT.text(titleText);mS.text("No data available.");mSvg.selectAll("*").remove();mSvg.attr("width",0).attr("height",0);overlay.classed("open",true);return}
+  mT.text(`Top ${Math.min(20,top.length)} Titles by ${metricLabel}`);mS.text(titleText+` \u2014 ${filtered.length} total titles`);
+  const bm={top:10,right:100,bottom:20,left:260},barH=24,barGap=4,bw=800-bm.left-bm.right,bh=top.length*(barH+barGap),totalH=bh+bm.top+bm.bottom;
+  mSvg.selectAll("*").remove();mSvg.attr("width",800).attr("height",totalH).attr("viewBox",`0 0 800 ${totalH}`).style("max-width","100%");
+  const bg=mSvg.append("g").attr("transform",`translate(${bm.left},${bm.top})`);
+  const maxV=d3.max(top,d=>d.peakMAU),bx=d3.scaleLinear().domain([0,maxV]).range([0,bw]);
+  top.forEach((d,i)=>{const y=i*(barH+barGap),c=orientation?colorMap[orientation]:colorMap[d.orientation];
+    bg.append("rect").attr("x",0).attr("y",y).attr("width",bx(d.peakMAU)).attr("height",barH).attr("fill",c).attr("rx",4).attr("opacity",.85);
+    bg.append("text").attr("class","bar-label").attr("x",-8).attr("y",y+barH/2+4).attr("text-anchor","end").text(d.game.length>32?d.game.slice(0,31)+"\u2026":d.game).append("title").text(d.game);
+    bg.append("text").attr("class","bar-value").attr("x",bx(d.peakMAU)+6).attr("y",y+barH/2+4).text(d3.format(",.0f")(d.peakMAU));
+    if(!orientation){bg.append("circle").attr("cx",-254).attr("cy",y+barH/2).attr("r",4).attr("fill",colorMap[d.orientation])}
+  });overlay.classed("open",true);
+}
+function openArchDrillDown(archetype,gamesArr,metricLabel){
+  const filtered=gamesArr.filter(d=>d.orientation===archetype).sort((a,b)=>b.peakMAU-a.peakMAU).slice(0,20);
+  const mT=d3.select("#modal-title"),mS=d3.select("#modal-subtitle"),mSvg=d3.select("#modal-chart-area");
+  mT.text(`Top 20 \u2014 ${archetype}`);mS.text(`by ${metricLabel}`);
+  const bm={top:10,right:100,bottom:20,left:260},barH=24,barGap=4,bw=800-bm.left-bm.right,bh=filtered.length*(barH+barGap),totalH=bh+bm.top+bm.bottom;
+  mSvg.selectAll("*").remove();mSvg.attr("width",800).attr("height",totalH).attr("viewBox",`0 0 800 ${totalH}`).style("max-width","100%");
+  const bg=mSvg.append("g").attr("transform",`translate(${bm.left},${bm.top})`);
+  const maxV=d3.max(filtered,d=>d.peakMAU)||1,bx=d3.scaleLinear().domain([0,maxV]).range([0,bw]);
+  filtered.forEach((d,i)=>{const y=i*(barH+barGap);
+    bg.append("rect").attr("x",0).attr("y",y).attr("width",bx(d.peakMAU)).attr("height",barH).attr("fill",colorMap[archetype]).attr("rx",4).attr("opacity",.85);
+    bg.append("text").attr("class","bar-label").attr("x",-8).attr("y",y+barH/2+4).attr("text-anchor","end").text(d.game.length>32?d.game.slice(0,31)+"\u2026":d.game);
+    bg.append("text").attr("class","bar-value").attr("x",bx(d.peakMAU)+6).attr("y",y+barH/2+4).text(d3.format(",.0f")(d.peakMAU));
+  });overlay.classed("open",true);
+}
+
+// Fullscreen chart modal
+const fsOverlay=d3.select("#fs-overlay");
+d3.select("#fs-close").on("click",closeFS);
+fsOverlay.on("click",evt=>{if(evt.target===document.getElementById("fs-overlay"))closeFS()});
+function closeFS(){fsOverlay.classed("open",false);d3.select("#fs-content").html("")}
+function openFS(title,sourceCardId){
+  d3.select("#fs-title").text(title);
+  const srcCard=document.getElementById(sourceCardId);
+  if(!srcCard)return;
+  const content=d3.select("#fs-content");content.html("");
+  const svgs=srcCard.querySelectorAll("svg");
+  svgs.forEach(svg=>{const clone=svg.cloneNode(true);if(!clone.getAttribute("viewBox")){const w=svg.getAttribute("width")||svg.clientWidth||800,h=svg.getAttribute("height")||svg.clientHeight||600;clone.setAttribute("viewBox",`0 0 ${w} ${h}`)}clone.removeAttribute("width");clone.removeAttribute("height");clone.setAttribute("preserveAspectRatio","xMidYMid meet");clone.style.width="100%";clone.style.maxHeight="80vh";content.node().appendChild(clone)});
+  fsOverlay.classed("open",true);
+}
+
+function fmtVal(v){if(v>=1e12)return d3.format(".1f")(v/1e12)+"T";if(v>=1e9)return d3.format(".1f")(v/1e9)+"B";if(v>=1e6)return d3.format(".1f")(v/1e6)+"M";if(v>=1e3)return d3.format(".1f")(v/1e3)+"K";return v.toString()}
+function truncate(s,n){return s.length>n?s.slice(0,n-1)+"\u2026":s}
+
+// === ARCHETYPE PAGE ===
+(function(){
+  const grid=document.getElementById("arch-grid");
+  archetypes.forEach(a=>{
+    const pcTop5=pcGames.filter(d=>d.orientation===a).sort((x,y)=>y.peakMAU-x.peakMAU).slice(0,10);
+    const rbxTop5=robloxGames.filter(d=>d.orientation===a).sort((x,y)=>y.peakMAU-x.peakMAU).slice(0,10);
+    const card=document.createElement("div");card.className="arch-card";
+    const gameLink=name=>`<a href="https://www.google.com/search?q=${encodeURIComponent(name+" game")}" target="_blank" rel="noopener" class="arch-game-link">${name.length>30?name.slice(0,29)+"\u2026":name}</a>`;
+    let exHtml='<div style="margin-top:10px">';
+    exHtml+='<div class="arch-platform-label" style="color:#79c0ff">PC + Console \u2014 Top 10 (Peak MAU)</div>';
+    if(pcTop5.length){pcTop5.forEach(d=>{exHtml+=`<div class="arch-example">${gameLink(d.game)}<span class="ae-mau">${fmtVal(d.peakMAU)} Peak MAU</span></div>`})}
+    else{exHtml+='<div class="arch-example" style="color:#484f58">No titles</div>'}
+    exHtml+='<div class="arch-platform-label" style="color:#7ee787;margin-top:10px">Roblox \u2014 Top 10 (CCU)</div>';
+    if(rbxTop5.length){rbxTop5.forEach(d=>{exHtml+=`<div class="arch-example">${gameLink(d.game)}<span class="ae-mau">${fmtVal(d.peakMAU)} CCU</span></div>`})}
+    else{exHtml+='<div class="arch-example" style="color:#484f58">No titles</div>'}
+    exHtml+='</div>';
+    card.innerHTML=`<div class="arch-icon">${archIcons[a]}</div><h3>${a}</h3><div class="arch-tag" style="background:${colorMap[a]}33;color:${colorMap[a]}">${a}</div><div class="arch-desc">${archDescs[a]}</div>${exHtml}`;
+    card.addEventListener("dblclick",()=>{
+      const pcF=pcGames.filter(d=>d.orientation===a).sort((x,y)=>y.peakMAU-x.peakMAU).slice(0,10);
+      const rbxF=robloxGames.filter(d=>d.orientation===a).sort((x,y)=>y.peakMAU-x.peakMAU).slice(0,10);
+      const mT=d3.select("#modal-title"),mS=d3.select("#modal-subtitle"),mSvg=d3.select("#modal-chart-area");
+      mT.text(a+" \u2014 Top Titles by Platform");mS.text("Top 10 PC + Console (Peak MAU) and Top 10 Roblox (CCU)");
+      const barH=24,barGap=4,sGap=36,bm={top:10,right:120,bottom:20,left:260},bw=800-bm.left-bm.right;
+      const totalH=bm.top+20+pcF.length*(barH+barGap)+sGap+20+rbxF.length*(barH+barGap)+bm.bottom;
+      mSvg.selectAll("*").remove();mSvg.attr("width",800).attr("height",totalH).attr("viewBox",`0 0 800 ${totalH}`).style("max-width","100%");
+      const bg=mSvg.append("g").attr("transform",`translate(${bm.left},${bm.top})`);
+      bg.append("text").attr("x",0).attr("y",12).attr("fill","#79c0ff").attr("font-size","13px").attr("font-weight","700").text("PC + Console (Peak MAU)");
+      const maxPC=d3.max(pcF,d=>d.peakMAU)||1,bxPC=d3.scaleLinear().domain([0,maxPC]).range([0,bw]);
+      pcF.forEach((d,i)=>{const y=20+i*(barH+barGap);
+        bg.append("rect").attr("x",0).attr("y",y).attr("width",bxPC(d.peakMAU)).attr("height",barH).attr("fill",colorMap[a]).attr("rx",4).attr("opacity",.85);
+        bg.append("text").attr("class","bar-label").attr("x",-8).attr("y",y+barH/2+4).attr("text-anchor","end").text(d.game.length>32?d.game.slice(0,31)+"\u2026":d.game);
+        bg.append("text").attr("class","bar-value").attr("x",bxPC(d.peakMAU)+6).attr("y",y+barH/2+4).text(d3.format(",.0f")(d.peakMAU));
+      });
+      const rbxY0=20+pcF.length*(barH+barGap)+sGap;
+      bg.append("text").attr("x",0).attr("y",rbxY0-8).attr("fill","#7ee787").attr("font-size","13px").attr("font-weight","700").text("Roblox (CCU)");
+      const maxRbx=d3.max(rbxF,d=>d.peakMAU)||1,bxRbx=d3.scaleLinear().domain([0,maxRbx]).range([0,bw]);
+      rbxF.forEach((d,i)=>{const y=rbxY0+i*(barH+barGap);
+        bg.append("rect").attr("x",0).attr("y",y).attr("width",bxRbx(d.peakMAU)).attr("height",barH).attr("fill",colorMap[a]).attr("rx",4).attr("opacity",.65);
+        bg.append("text").attr("class","bar-label").attr("x",-8).attr("y",y+barH/2+4).attr("text-anchor","end").text(d.game.length>32?d.game.slice(0,31)+"\u2026":d.game);
+        bg.append("text").attr("class","bar-value").attr("x",bxRbx(d.peakMAU)+6).attr("y",y+barH/2+4).text(d3.format(",.0f")(d.peakMAU));
+      });
+      overlay.classed("open",true);
+    });
+    grid.appendChild(card);
+  });
+})();
+
+// === PIE CHART ===
+function buildPieChart(svgId,dataMap,palette,gamesArr,metricLabel,filterKey){
+  const container=document.getElementById(svgId).parentElement;
+  const cw=container.clientWidth||520;
+  const w=Math.min(cw-10,520),h=Math.min(w,420);
+  const svg=d3.select("#"+svgId).attr("width",w).attr("height",h).attr("viewBox",`0 0 ${w} ${h}`);
+  svg.selectAll("*").remove();
+  const radius=Math.min(w,h)/2-80;
+  if(radius<20)return;
+  const g=svg.append("g").attr("transform",`translate(${w/2},${h/2})`);
+  const entries=Object.entries(dataMap).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((s,[,v])=>s+v,0);
+  const pie=d3.pie().value(d=>d[1]).sort(null).padAngle(0.015);
+  const arc=d3.arc().innerRadius(radius*.38).outerRadius(radius);
+  const arcHover=d3.arc().innerRadius(radius*.38).outerRadius(radius*1.06);
+  g.selectAll("path").data(pie(entries)).join("path").attr("d",arc)
+    .attr("fill",(d,i)=>typeof palette==="object"&&!Array.isArray(palette)?palette[d.data[0]]:palette[i%palette.length])
+    .attr("stroke","#161b22").attr("stroke-width",2).style("cursor","pointer")
+    .on("mouseover",function(evt,d){d3.select(this).transition().duration(150).attr("d",arcHover);tooltip.style("display","block").html(`<div class="tt-genre">${d.data[0]}</div><div class="tt-row"><span class="tt-label">Share</span><span class="tt-val">${d3.format(".1%")(d.data[1]/total)}</span></div><div class="tt-row"><span class="tt-label">Value</span><span class="tt-val">${d3.format(",.0f")(d.data[1])}</span></div>`);positionTooltip(evt)})
+    .on("mousemove",positionTooltip)
+    .on("mouseout",function(){d3.select(this).transition().duration(150).attr("d",arc);hideTooltip()})
+    .on("dblclick",(evt,d)=>{evt.stopPropagation();if(filterKey==="genre")openDrillDown(d.data[0],null,gamesArr,metricLabel);else openArchDrillDown(d.data[0],gamesArr,metricLabel)});
+  // Outside labels with short leader lines
+  const arcMid=d3.arc().innerRadius(radius*1.02).outerRadius(radius*1.02);
+  const arcOuter=d3.arc().innerRadius(radius*1.12).outerRadius(radius*1.12);
+  g.selectAll("polyline").data(pie(entries)).join("polyline")
+    .attr("points",d=>{if(d.data[1]/total<.03)return"0,0 0,0 0,0";const p1=arcMid.centroid(d),p2=arcOuter.centroid(d),off=p2[0]>=0?8:-8;return[p1,p2,[p2[0]+off,p2[1]]]})
+    .attr("fill","none").attr("stroke","#484f58").attr("stroke-width",1);
+  g.selectAll("text.pie-label").data(pie(entries)).join("text").attr("class","pie-label")
+    .attr("transform",d=>{if(d.data[1]/total<.03)return"translate(-9999,-9999)";const p=arcOuter.centroid(d),off=p[0]>=0?12:-12;return`translate(${p[0]+off},${p[1]})`})
+    .attr("text-anchor",d=>arcOuter.centroid(d)[0]>=0?"start":"end")
+    .attr("dy","0.35em")
+    .text(d=>truncate(d.data[0],12)+" "+d3.format(".0%")(d.data[1]/total));
+}
+
+// === MEKKO BUILDER ===
+function buildMekko(config){
+  const{aggregate,gamesArr,svgId,minimapId,minimapWrapId,vpId,zoomLabelId,unit,metricLabel,legendClass,pageId}=config;
+  const stackKeys=config.stackKeys||archetypes;
+  const stackColor=config.stackColor||((k)=>colorMap[k]);
+  const legendKeys=config.legendKeys||stackKeys;
+  const legendColor=config.legendColor||stackColor;
+  const colLabel=config.colLabel||"Genre";
+  const stackLabel=config.stackLabel||"Archetype";
+  const drillSwap=!!config.drillSwap;
+  const groupOther=config.groupOther!==false;
+  const stackStroke=!!config.stackStroke;
+  const sortStacksByValue=!!config.sortStacksByValue;
+  const inlineStackLabel=!!config.inlineStackLabel;
+  const allGenres=Object.keys(aggregate).map(g=>{const total=stackKeys.reduce((s,o)=>s+((aggregate[g]||{})[o]||0),0);return{genre:g,total,breakdown:aggregate[g]}}).filter(g=>g.total>0).sort((a,b)=>b.total-a.total);
+  const splitAt=groupOther?Math.max(1,allGenres.length-7):allGenres.length;
+  const topGenres=allGenres.slice(0,splitAt);
+  const otherGenres=allGenres.slice(splitAt);
+  const otherTotal=otherGenres.reduce((s,g)=>s+g.total,0);
+  const otherBreakdown={};stackKeys.forEach(a=>{otherBreakdown[a]=otherGenres.reduce((s,g)=>s+(g.breakdown[a]||0),0)});
+  const genresWithOther=otherGenres.length?[...topGenres,{genre:"Other ("+otherGenres.map(g=>g.genre).join(", ")+")",total:otherTotal,breakdown:otherBreakdown,isOther:true,subGenres:otherGenres}]:topGenres;
+  const grandTotal=allGenres.reduce((s,g)=>s+g.total,0);
+  let useGrouped=true;
+  function getGenres(){return useGrouped?genresWithOther:allGenres}
+  function prepGenres(arr){arr.forEach((g,i)=>{g.share=g.total/grandTotal;g.x0=i===0?0:arr[i-1].x1;g.x1=g.x0+g.share})}
+  prepGenres(genresWithOther);prepGenres(allGenres);
+
+  const leg=d3.select("."+legendClass);
+  legendKeys.forEach(o=>{const it=leg.append("div").attr("class","legend-item");it.append("div").attr("class","legend-swatch").style("background",legendColor(o));it.append("span").text(o)});
+
+  const margin={top:82,right:12,bottom:16,left:44};
+  const containerEl=document.querySelector("#"+svgId).closest(".chart-wrap");
+  function getViewW(){return containerEl.clientWidth||window.innerWidth-64}
+  let viewW=getViewW();
+  const chartH=480,svgH=chartH+margin.top+margin.bottom;
+  let innerW=viewW-margin.left-margin.right;
+  const svg=d3.select("#"+svgId).attr("width",viewW).attr("height",svgH);
+  svg.append("defs").append("clipPath").attr("id","clip-"+svgId).append("rect").attr("width",innerW).attr("height",svgH);
+  const gRoot=svg.append("g").attr("transform",`translate(${margin.left},0)`);
+  const gClip=gRoot.append("g").attr("clip-path",`url(#clip-${svgId})`);
+  const gChart=gClip.append("g").attr("transform",`translate(0,${margin.top})`);
+  const gLabels=gClip.append("g");
+  let xBase=d3.scaleLinear().domain([0,grandTotal]).range([0,innerW]);
+  let xCurrent=xBase.copy();
+  const yScale=d3.scaleLinear().domain([0,1]).range([0,chartH]);
+
+  const gY=svg.append("g").attr("transform",`translate(0,${margin.top})`);
+  [0,.25,.5,.75,1].forEach(v=>{gY.append("line").attr("x1",margin.left).attr("x2",viewW-margin.right).attr("y1",yScale(v)).attr("y2",yScale(v)).attr("stroke","#21262d").attr("stroke-dasharray",v===0||v===1?"none":"4,4")});
+  [0,.25,.5,.75,1].forEach(v=>{gY.append("text").attr("class","axis-label").attr("x",margin.left-6).attr("y",yScale(v)+4).attr("text-anchor","end").text(d3.format(".0%")(v))});
+
+  function drawChart(){
+    gChart.selectAll("*").remove();gLabels.selectAll("*").remove();
+    const genres=getGenres();
+    genres.forEach(genreObj=>{
+      const{genre,total,breakdown,share}=genreObj;
+      const x=xCurrent(genreObj.x0*grandTotal),w=xCurrent(genreObj.x1*grandTotal)-x;
+      if(w<.5)return;
+      const colG=gChart.append("g").attr("transform",`translate(${x},0)`);
+      const labG=gLabels.append("g").attr("transform",`translate(${x},0)`);
+      const labelY=margin.top-8;
+      const displayName=genre.startsWith("Other")?("Other ("+otherGenres.length+")"):genre;
+      if(w>52){labG.append("text").attr("class","col-label-genre").attr("x",w/2).attr("y",labelY-32).attr("text-anchor","middle").text(displayName);labG.append("text").attr("class","col-label-share").attr("x",w/2).attr("y",labelY-16).attr("text-anchor","middle").text(d3.format(".1%")(share));labG.append("text").attr("class","col-label-hours").attr("x",w/2).attr("y",labelY).attr("text-anchor","middle").text(fmtVal(total)+" "+unit)}
+      else if(w>6){labG.append("text").attr("class","col-label-genre").attr("x",w/2).attr("y",labelY-2).attr("text-anchor","end").attr("transform",`rotate(-55,${w/2},${labelY-2})`).style("font-size","10px").text(displayName)}
+      let yOff=0;
+      const orderedKeys=sortStacksByValue?[...stackKeys].sort((a,b)=>((breakdown||{})[b]||0)-((breakdown||{})[a]||0)):stackKeys;
+      orderedKeys.forEach((ori,si)=>{const val=(breakdown||{})[ori]||0;if(val===0)return;const pct=total>0?val/total:0,h=yScale(pct);
+        const r=colG.append("rect").attr("class","segment").attr("x",0).attr("y",yOff).attr("width",w).attr("height",Math.max(h,.5)).attr("fill",stackColor(ori,genre,si)).attr("rx",Math.min(2,w/4))
+          .datum({genre,orientation:ori,hours:val,pct,total,isOther:genreObj.isOther})
+          .on("mouseover",(evt,d)=>showTooltip(evt,d.genre.startsWith("Other")?"Other":d.genre,d.orientation,d.hours,d.pct,unit,colLabel,stackLabel))
+          .on("mousemove",positionTooltip).on("mouseout",hideTooltip)
+          .on("dblclick",(evt,d)=>{evt.stopPropagation();if(d.isOther)return;const g=drillSwap?d.orientation:d.genre,a=drillSwap?d.genre:d.orientation;openDrillDown(g,a,gamesArr,metricLabel)});
+        if(stackStroke)r.attr("stroke","#0d1117").attr("stroke-width",0.75);
+        if(h>20&&w>40){const maxChars=Math.max(4,Math.floor((w-16)/7));const nameTxt=inlineStackLabel&&w>70?truncate(ori,maxChars)+" \u00b7 "+d3.format(".0%")(pct):d3.format(".0%")(pct);colG.append("text").attr("x",w/2).attr("y",yOff+h/2+4).attr("text-anchor","middle").attr("font-size","10px").attr("fill","#0d1117").attr("font-weight","600").attr("pointer-events","none").text(nameTxt)}
+        yOff+=h});
+      colG.insert("rect",":first-child").attr("x",0).attr("y",0).attr("width",w).attr("height",chartH).attr("fill","transparent")
+        .datum({genre,orientation:null,total,isOther:genreObj.isOther})
+        .on("mouseover",(evt,d)=>showGenreTooltip(evt,d.genre.startsWith("Other")?"Other":d.genre,d.total,grandTotal,unit))
+        .on("mousemove",positionTooltip).on("mouseout",hideTooltip)
+        .on("dblclick",(evt,d)=>{evt.stopPropagation();if(d.isOther)return;if(drillSwap)openDrillDown(null,d.genre,gamesArr,metricLabel);else openDrillDown(d.genre,null,gamesArr,metricLabel)});
+      colG.append("line").attr("x1",w).attr("x2",w).attr("y1",0).attr("y2",chartH).attr("stroke","#161b22").attr("stroke-width",1);
+    });
+  }
+
+  const zoomBehavior=d3.zoom().scaleExtent([1,300]).translateExtent([[0,0],[innerW,svgH]]).extent([[0,0],[innerW,svgH]])
+    .on("zoom",evt=>{const t=evt.transform;xCurrent=t.rescaleX(xBase);
+      const newGrouped=t.k<1.5;if(newGrouped!==useGrouped){useGrouped=newGrouped}
+      drawChart();updateMM(t);d3.select("#"+zoomLabelId).text(Math.round(t.k*100)+"%")});
+  svg.call(zoomBehavior).on("dblclick.zoom",null);
+
+  window.addEventListener("resize",()=>{
+    const newW=getViewW();if(Math.abs(newW-viewW)<2)return;
+    viewW=newW;innerW=viewW-margin.left-margin.right;
+    svg.attr("width",viewW);
+    d3.select("#clip-"+svgId+" rect").attr("width",innerW);
+    xBase=d3.scaleLinear().domain([0,grandTotal]).range([0,innerW]);
+    xCurrent=xBase.copy();
+    gY.selectAll("line").attr("x2",viewW-margin.right);
+    zoomBehavior.translateExtent([[0,0],[innerW,svgH]]).extent([[0,0],[innerW,svgH]]);
+    svg.call(zoomBehavior.transform,d3.zoomIdentity);
+    mmW=newW;mmSvg.attr("width",mmW);mmX.range([0,mmW]);
+    mmSvg.selectAll("*").remove();
+    allGenres.forEach(gObj=>{const x=mmX(gObj.x0*grandTotal),w=Math.max(1,mmX(gObj.total));let yOff=0;
+      stackKeys.forEach((ori,si)=>{const val=(gObj.breakdown||{})[ori]||0;if(val===0)return;const pct=gObj.total>0?val/gObj.total:0,h=mmH*pct;
+        mmSvg.append("rect").attr("x",x).attr("y",yOff).attr("width",w).attr("height",h).attr("fill",stackColor(ori,gObj.genre,si));yOff+=h})});
+    updateMM(d3.zoomIdentity);drawChart();
+  });
+
+  const mmH=32;let mmW=viewW;
+  const mmSvg=d3.select("#"+minimapId).attr("width",mmW).attr("height",mmH);
+  d3.select("#"+minimapWrapId).style("width","100%");
+  const mmX=d3.scaleLinear().domain([0,grandTotal]).range([0,mmW]);
+  allGenres.forEach(gObj=>{const x=mmX(gObj.x0*grandTotal),w=Math.max(1,mmX(gObj.total));let yOff=0;
+    stackKeys.forEach((ori,si)=>{const val=(gObj.breakdown||{})[ori]||0;if(val===0)return;const pct=gObj.total>0?val/gObj.total:0,h=mmH*pct;
+      mmSvg.append("rect").attr("x",x).attr("y",yOff).attr("width",w).attr("height",h).attr("fill",stackColor(ori,gObj.genre,si));yOff+=h})});
+  const vpInd=d3.select("#"+vpId);
+  function updateMM(t){vpInd.style("left",Math.max(0,-t.x/t.k/innerW*mmW)+"px").style("width",Math.min(mmW,mmW/t.k)+"px")}
+  updateMM(d3.zoomIdentity);
+  document.querySelectorAll(`.btn-reset[data-target="${pageId}"]`).forEach(b=>b.addEventListener("click",()=>svg.transition().duration(400).call(zoomBehavior.transform,d3.zoomIdentity)));
+  document.querySelectorAll(`.btn-zin[data-target="${pageId}"]`).forEach(b=>b.addEventListener("click",()=>svg.transition().duration(300).call(zoomBehavior.scaleBy,2)));
+  document.querySelectorAll(`.btn-zout[data-target="${pageId}"]`).forEach(b=>b.addEventListener("click",()=>svg.transition().duration(300).call(zoomBehavior.scaleBy,.5)));
+  drawChart();
+}
+
+function genreTotals(agg){const m={};for(const[g,obj]of Object.entries(agg)){const t=archetypes.reduce((s,o)=>s+(obj[o]||0),0);if(t>0)m[g]=t}return m}
+function oriTotals(agg){const m={};archetypes.forEach(o=>{const t=Object.values(agg).reduce((s,obj)=>s+(obj[o]||0),0);if(t>0)m[o]=t});return m}
+
+buildPieChart("pie-genre-pc",genreTotals(pcAggregate),genrePalette,pcGames,"Peak MAU","genre");
+buildPieChart("pie-ori-pc",oriTotals(pcAggregate),colorMap,pcGames,"Peak MAU","archetype");
+buildPieChart("pie-genre-roblox",genreTotals(robloxAggregate),genrePalette,robloxGames,"Active Players (CCU)","genre");
+buildPieChart("pie-ori-roblox",oriTotals(robloxAggregate),colorMap,robloxGames,"Active Players (CCU)","archetype");
+[["card-pie-genre-pc","Genre Distribution (Total MAU)"],["card-pie-ori-pc","Archetype Distribution \u2014 PC + Console"],["card-pie-genre-roblox","Genre Distribution (CCU)"],["card-pie-ori-roblox","Archetype Distribution \u2014 Roblox"]].forEach(([id,title])=>{document.getElementById(id).addEventListener("dblclick",evt=>{if(evt.target.tagName==="path")return;openFS(title,id)})});
+buildMekko({aggregate:pcAggregate,gamesArr:pcGames,svgId:"mekko-pc",minimapId:"minimap-pc",minimapWrapId:"minimap-wrap-pc",vpId:"vp-pc",zoomLabelId:"zoom-label-pc",unit:"Total MAU",metricLabel:"Peak MAU",legendClass:"legend-pc",pageId:"pc"});
+buildMekko({aggregate:robloxAggregate,gamesArr:robloxGames,svgId:"mekko-roblox",minimapId:"minimap-roblox",minimapWrapId:"minimap-wrap-roblox",vpId:"vp-roblox",zoomLabelId:"zoom-label-roblox",unit:"CCU",metricLabel:"Active Players (CCU)",legendClass:"legend-roblox",pageId:"roblox"});
+
+// Inverted (archetype-first) views: columns are archetypes, stacks are genres with distinct colors.
+(function(){
+  const allGenresUnion=[...new Set([...Object.keys(pcAggregate),...Object.keys(robloxAggregate)])].sort();
+  // Stable genre -> distinct color mapping (reused by the genre pie below so colors match).
+  const genreColorMap={};allGenresUnion.forEach((g,i)=>{genreColorMap[g]=genrePalette[i%genrePalette.length]});
+  const invStackColor=(genre)=>genreColorMap[genre]||"#8b949e";
+  // Legend shows genres (what the stack colors represent). Sort stacks by value so the
+  // biggest bands sit at the bottom of each column — scanning top-to-bottom reveals
+  // dominant -> minor genres. Thin dark stroke separates adjacent bands; larger segments
+  // get an inline "Genre · %" label for immediate ID.
+  const cfg={stackKeys:allGenresUnion,stackColor:invStackColor,legendKeys:allGenresUnion,legendColor:k=>genreColorMap[k],colLabel:"Archetype",stackLabel:"Genre",drillSwap:true,groupOther:false,stackStroke:true,sortStacksByValue:true,inlineStackLabel:true};
+  buildMekko({aggregate:transposeAggregate(pcAggregate),gamesArr:pcGames,svgId:"mekko-pc-inv",minimapId:"minimap-pc-inv",minimapWrapId:"minimap-wrap-pc-inv",vpId:"vp-pc-inv",zoomLabelId:"zoom-label-pc-inv",unit:"Total MAU",metricLabel:"Peak MAU",legendClass:"legend-pc-inv",pageId:"pc-inv",...cfg});
+  buildMekko({aggregate:transposeAggregate(robloxAggregate),gamesArr:robloxGames,svgId:"mekko-roblox-inv",minimapId:"minimap-roblox-inv",minimapWrapId:"minimap-wrap-roblox-inv",vpId:"vp-roblox-inv",zoomLabelId:"zoom-label-roblox-inv",unit:"CCU",metricLabel:"Active Players (CCU)",legendClass:"legend-roblox-inv",pageId:"roblox-inv",...cfg});
+
+  // Pie charts for the inverted pages (archetype first, then genre). Genre pie reuses
+  // genreColorMap so pie slice colors match the Mekko stack colors exactly.
+  buildPieChart("pie-ori-pc-inv",oriTotals(pcAggregate),colorMap,pcGames,"Peak MAU","archetype");
+  buildPieChart("pie-genre-pc-inv",genreTotals(pcAggregate),genreColorMap,pcGames,"Peak MAU","genre");
+  buildPieChart("pie-ori-roblox-inv",oriTotals(robloxAggregate),colorMap,robloxGames,"Active Players (CCU)","archetype");
+  buildPieChart("pie-genre-roblox-inv",genreTotals(robloxAggregate),genreColorMap,robloxGames,"Active Players (CCU)","genre");
+  [["card-pie-ori-pc-inv","Archetype Distribution \u2014 PC + Console"],["card-pie-genre-pc-inv","Genre Distribution (Total MAU)"],["card-pie-ori-roblox-inv","Archetype Distribution \u2014 Roblox"],["card-pie-genre-roblox-inv","Genre Distribution (CCU)"]].forEach(([id,title])=>{const el=document.getElementById(id);if(el)el.addEventListener("dblclick",evt=>{if(evt.target.tagName==="path")return;openFS(title,id)})});
+})();
+
+// === COMPARISON ===
+(function(){
+  const pcColor="#79c0ff",rbxColor="#7ee787";
+  const pcLabel="PC + Console",rbxLabel="Roblox";
+  const allGenres=[...new Set([...Object.keys(pcAggregate),...Object.keys(robloxAggregate)])];
+  function getShares(agg){const tots={};let grand=0;for(const g of allGenres){const t=archetypes.reduce((s,o)=>s+((agg[g]||{})[o]||0),0);tots[g]=t;grand+=t}const shares={};for(const g of allGenres)shares[g]=grand>0?tots[g]/grand:0;return{tots,grand,shares}}
+  const pc=getShares(pcAggregate),rbx=getShares(robloxAggregate);
+  const pcOriShares={},rbxOriShares={};
+  archetypes.forEach(o=>{pcOriShares[o]=Object.values(pcAggregate).reduce((s,obj)=>s+(obj[o]||0),0)/pc.grand;rbxOriShares[o]=Object.values(robloxAggregate).reduce((s,obj)=>s+(obj[o]||0),0)/rbx.grand});
+
+  const pcTop3=archetypes.slice().sort((a,b)=>(pcOriShares[b]||0)-(pcOriShares[a]||0)).slice(0,3);
+  const rbxTop3=archetypes.slice().sort((a,b)=>(rbxOriShares[b]||0)-(rbxOriShares[a]||0)).slice(0,3);
+  const kpiRow=d3.select("#kpi-row");
+  [{val:pcTop3.map(a=>a.split(" ")[0]).join(", "),label:"Top 3 Archetypes \u2014 "+pcLabel},
+   {val:rbxTop3.map(a=>a.split(" ")[0]).join(", "),label:"Top 3 Archetypes \u2014 "+rbxLabel},
+   {val:d3.format(".1%")(pcOriShares["Singleplayer Fixed"]||0)+" \u2192 "+d3.format(".1%")(rbxOriShares["Singleplayer Fixed"]||0),label:"Singleplayer Fixed ("+pcLabel+" \u2192 "+rbxLabel+")"},
+   {val:d3.format(".1%")(pcOriShares["Parallel Progression"]||0)+" \u2192 "+d3.format(".1%")(rbxOriShares["Parallel Progression"]||0),label:"Parallel Progression ("+pcLabel+" \u2192 "+rbxLabel+")"}
+  ].forEach(k=>{const box=kpiRow.append("div").attr("class","kpi-box");box.append("div").attr("class","kpi-value").style("font-size",k.val.length>16?"15px":"22px").text(k.val);box.append("div").attr("class","kpi-label").text(k.label)});
+
+  // Concentration chart
+  const sortedGenres=allGenres.filter(g=>pc.tots[g]>0||rbx.tots[g]>0).sort((a,b)=>pc.shares[b]-pc.shares[a]);
+  const bothActive=sortedGenres.filter(g=>pc.tots[g]>0&&rbx.tots[g]>0);
+  const cm={top:30,right:60,bottom:110,left:140},cw=Math.max(600,bothActive.length*56),ch=240;
+  const cSvg=d3.select("#comp-concentration").attr("width",cw+cm.left+cm.right).attr("height",ch+cm.top+cm.bottom).style("max-width","100%").attr("viewBox",`0 0 ${cw+cm.left+cm.right} ${ch+cm.top+cm.bottom}`);
+  const cG=cSvg.append("g").attr("transform",`translate(${cm.left},${cm.top})`);
+  const ratios=bothActive.map(g=>({genre:g,ratio:Math.log2((pc.shares[g]||0.001)/(rbx.shares[g]||0.001)),pcShare:pc.shares[g],rbxShare:rbx.shares[g]})).sort((a,b)=>b.ratio-a.ratio);
+  const cxBand=d3.scaleBand().domain(ratios.map(d=>d.genre)).range([0,cw]).paddingInner(.2);
+  const maxR=d3.max(ratios,d=>Math.abs(d.ratio))||1;
+  const cy=d3.scaleLinear().domain([-maxR*1.2,maxR*1.2]).range([ch,0]);
+  cG.append("g").attr("transform",`translate(0,${ch})`).call(d3.axisBottom(cxBand).tickSize(0)).selectAll("text").attr("fill","#8b949e").attr("font-size","11px").attr("transform","rotate(-45)").attr("text-anchor","end").attr("dx","-6px").attr("dy","6px");
+  cG.append("g").call(d3.axisLeft(cy).ticks(5).tickFormat(d=>(d>0?pcLabel+" ":"Roblox ")+Math.abs(d).toFixed(1)+"x").tickSize(-cw)).selectAll("line").attr("stroke","#21262d");
+  cG.selectAll(".domain").remove();cG.selectAll(".tick text").attr("fill","#8b949e").attr("font-size","10px");
+  cG.append("line").attr("x1",0).attr("x2",cw).attr("y1",cy(0)).attr("y2",cy(0)).attr("stroke","#484f58").attr("stroke-width",1.5);
+  ratios.forEach(d=>{
+    const barY=d.ratio>=0?cy(d.ratio):cy(0),barH=Math.abs(cy(0)-cy(d.ratio)),color=d.ratio>=0?pcColor:rbxColor;
+    cG.append("rect").attr("x",cxBand(d.genre)).attr("y",barY).attr("width",cxBand.bandwidth()).attr("height",Math.max(barH,1)).attr("fill",color).attr("rx",3).attr("opacity",.85)
+      .on("mouseover",evt=>{tooltip.style("display","block").html(`<div class="tt-genre">${d.genre}</div><div class="tt-row"><span class="tt-label">${pcLabel} Share</span><span class="tt-val">${d3.format(".2%")(d.pcShare)}</span></div><div class="tt-row"><span class="tt-label">Roblox Share</span><span class="tt-val">${d3.format(".2%")(d.rbxShare)}</span></div><div class="tt-row"><span class="tt-label">Log\u2082 Ratio</span><span class="tt-val">${d.ratio.toFixed(2)}</span></div>`);positionTooltip(evt)})
+      .on("mousemove",positionTooltip).on("mouseout",hideTooltip);
+    const labelY=d.ratio>=0?barY-6:barY+barH+14;
+    if(Math.abs(d.ratio)>0.3){cG.append("text").attr("x",cxBand(d.genre)+cxBand.bandwidth()/2).attr("y",labelY).attr("text-anchor","middle").attr("font-size","9px").attr("fill",color).attr("font-weight","600").text(d.ratio.toFixed(1)+"x")}
+  });
+  document.getElementById("cc-concentration").addEventListener("dblclick",()=>openFS("Platform Concentration \u2014 Log\u2082 Ratio","cc-concentration"));
+
+  // Radar chart
+  const radarW=580,radarH=640,radarR=170;
+  const rSvg=d3.select("#comp-radar").attr("width",radarW).attr("height",radarH).attr("viewBox",`0 0 ${radarW} ${radarH}`).style("max-width","100%");
+  const rG=rSvg.append("g").attr("transform",`translate(${radarW/2},${radarR*1.28+24})`);
+  const angleSlice=2*Math.PI/archetypes.length;
+  const rScale=d3.scaleLinear().domain([0,d3.max(archetypes,a=>Math.max(pcOriShares[a]||0,rbxOriShares[a]||0))*1.15]).range([0,radarR]);
+  [.25,.5,.75,1].forEach(v=>{rG.append("circle").attr("r",rScale(rScale.domain()[1]*v)).attr("fill","none").attr("stroke","#21262d").attr("stroke-dasharray","3,3");
+    rG.append("text").attr("x",4).attr("y",-rScale(rScale.domain()[1]*v)-2).attr("fill","#484f58").attr("font-size","9px").text(d3.format(".0%")(rScale.domain()[1]*v))});
+  archetypes.forEach((a,i)=>{const angle=angleSlice*i-Math.PI/2;const x=Math.cos(angle)*radarR*1.28,y=Math.sin(angle)*radarR*1.28;
+    rG.append("line").attr("x1",0).attr("y1",0).attr("x2",Math.cos(angle)*radarR).attr("y2",Math.sin(angle)*radarR).attr("stroke","#21262d");
+    rG.append("text").attr("x",x).attr("y",y).attr("text-anchor","middle").attr("dy","0.35em").attr("fill","#c9d1d9").attr("font-size","11px").attr("font-weight","600").text(a)});
+  function radarLine(shares,color){
+    const pts=archetypes.map((a,i)=>{const angle=angleSlice*i-Math.PI/2;const r=rScale(shares[a]||0);return[Math.cos(angle)*r,Math.sin(angle)*r]});
+    rG.append("polygon").attr("points",pts.map(p=>p.join(",")).join(" ")).attr("fill",color).attr("fill-opacity",.12).attr("stroke",color).attr("stroke-width",2.5);
+    pts.forEach((p,i)=>{rG.append("circle").attr("cx",p[0]).attr("cy",p[1]).attr("r",5).attr("fill",color).attr("stroke","#161b22").attr("stroke-width",1.5);
+      rG.append("text").attr("x",p[0]+(p[0]>0?12:-12)).attr("y",p[1]-8).attr("fill",color).attr("font-size","10px").attr("font-weight","600").attr("text-anchor",p[0]>0?"start":"end").text(d3.format(".0%")(shares[archetypes[i]]||0))});
+  }
+  radarLine(pcOriShares,pcColor);radarLine(rbxOriShares,rbxColor);
+  [{c:pcColor,l:pcLabel},{c:rbxColor,l:rbxLabel}].forEach((d,i)=>{rG.append("circle").attr("cx",-70+i*150).attr("cy",radarR*1.28+60).attr("r",6).attr("fill",d.c);rG.append("text").attr("x",-58+i*150).attr("y",radarR*1.28+64).attr("fill","#c9d1d9").attr("font-size","12px").attr("font-weight","600").text(d.l)});
+  document.getElementById("cc-radar").addEventListener("dblclick",()=>openFS("Archetype Radar \u2014 "+pcLabel+" vs "+rbxLabel,"cc-radar"));
+
+  // Genre bars
+  const gm={top:20,right:30,bottom:110,left:70},gw=Math.max(700,sortedGenres.length*62),gh=360;
+  const gSvg=d3.select("#comp-genre-bars").attr("width",gw+gm.left+gm.right).attr("height",gh+gm.top+gm.bottom).style("max-width","100%").attr("viewBox",`0 0 ${gw+gm.left+gm.right} ${gh+gm.top+gm.bottom}`);
+  const gG=gSvg.append("g").attr("transform",`translate(${gm.left},${gm.top})`);
+  const x0=d3.scaleBand().domain(sortedGenres).range([0,gw]).paddingInner(.25).paddingOuter(.1);
+  const x1=d3.scaleBand().domain(["pc","rbx"]).range([0,x0.bandwidth()]).padding(.08);
+  const maxShare=d3.max(sortedGenres,g=>Math.max(pc.shares[g],rbx.shares[g]));
+  const yG=d3.scaleLinear().domain([0,maxShare*1.15]).range([gh,0]);
+  gG.append("g").attr("transform",`translate(0,${gh})`).call(d3.axisBottom(x0).tickSize(0)).selectAll("text").attr("fill","#8b949e").attr("font-size","11px").attr("transform","rotate(-45)").attr("text-anchor","end").attr("dx","-6px").attr("dy","6px");
+  gG.append("g").call(d3.axisLeft(yG).ticks(6).tickFormat(d3.format(".0%")).tickSize(-gw)).selectAll("line").attr("stroke","#21262d");
+  gG.selectAll(".domain").remove();gG.selectAll(".tick text").attr("fill","#8b949e");
+  sortedGenres.forEach(genre=>{[{key:"pc",share:pc.shares[genre],color:pcColor,label:pcLabel},{key:"rbx",share:rbx.shares[genre],color:rbxColor,label:rbxLabel}].forEach(d=>{
+    const bH=gh-yG(d.share);
+    gG.append("rect").attr("x",x0(genre)+x1(d.key)).attr("y",yG(d.share)).attr("width",x1.bandwidth()).attr("height",bH).attr("fill",d.color).attr("rx",3).attr("opacity",.85)
+      .on("mouseover",evt=>{tooltip.style("display","block").html(`<div class="tt-genre">${genre}</div><div class="tt-row"><span class="tt-label">${d.label}</span><span class="tt-val">${d3.format(".2%")(d.share)}</span></div>`);positionTooltip(evt)})
+      .on("mousemove",positionTooltip).on("mouseout",hideTooltip);
+    if(d.share>0.005){gG.append("text").attr("x",x0(genre)+x1(d.key)+x1.bandwidth()/2).attr("y",yG(d.share)-5).attr("text-anchor","middle").attr("font-size","9px").attr("fill",d.color).attr("font-weight","600").text(d3.format(".1%")(d.share))}
+  })});
+  const lg1=d3.select("#comp-legend-genre");[{c:pcColor,l:pcLabel},{c:rbxColor,l:rbxLabel}].forEach(d=>{const it=lg1.append("div").attr("class","comp-legend-item");it.append("div").attr("class","comp-legend-swatch").style("background",d.c);it.append("span").text(d.l)});
+  document.getElementById("cc-genre-bars").addEventListener("dblclick",()=>openFS("Genre Market Share \u2014 "+pcLabel+" vs "+rbxLabel,"cc-genre-bars"));
+
+  // Archetype bars
+  const om={top:20,right:50,bottom:40,left:170},ow=540,oh=archetypes.length*52;
+  const oSvg=d3.select("#comp-ori-bars").attr("width",ow+om.left+om.right).attr("height",oh+om.top+om.bottom).style("max-width","100%").attr("viewBox",`0 0 ${ow+om.left+om.right} ${oh+om.top+om.bottom}`);
+  const oG=oSvg.append("g").attr("transform",`translate(${om.left},${om.top})`);
+  const oy0=d3.scaleBand().domain(archetypes).range([0,oh]).paddingInner(.3).paddingOuter(.1);
+  const oy1=d3.scaleBand().domain(["pc","rbx"]).range([0,oy0.bandwidth()]).padding(.08);
+  const maxOri=d3.max(archetypes,o=>Math.max(pcOriShares[o]||0,rbxOriShares[o]||0));
+  const ox=d3.scaleLinear().domain([0,maxOri*1.15]).range([0,ow]);
+  oG.append("g").call(d3.axisLeft(oy0).tickSize(0)).selectAll("text").attr("fill","#c9d1d9").attr("font-size","12px").attr("font-weight","600");
+  oG.append("g").attr("transform",`translate(0,${oh})`).call(d3.axisBottom(ox).ticks(5).tickFormat(d3.format(".0%")).tickSize(-oh)).selectAll("line").attr("stroke","#21262d");
+  oG.selectAll(".domain").remove();oG.selectAll(".tick text").attr("fill","#8b949e");
+  const lg2=d3.select("#comp-legend-ori");[{c:pcColor,l:pcLabel},{c:rbxColor,l:rbxLabel}].forEach(d=>{const it=lg2.append("div").attr("class","comp-legend-item");it.append("div").attr("class","comp-legend-swatch").style("background",d.c);it.append("span").text(d.l)});
+  archetypes.forEach(ori=>{[{key:"pc",share:pcOriShares[ori]||0,color:pcColor,label:pcLabel},{key:"rbx",share:rbxOriShares[ori]||0,color:rbxColor,label:rbxLabel}].forEach(d=>{
+    const bW=ox(d.share);
+    oG.append("rect").attr("y",oy0(ori)+oy1(d.key)).attr("x",0).attr("width",bW).attr("height",oy1.bandwidth()).attr("fill",d.color).attr("rx",3).attr("opacity",.85)
+      .on("mouseover",evt=>{tooltip.style("display","block").html(`<div class="tt-genre">${ori}</div><div class="tt-row"><span class="tt-label">${d.label}</span><span class="tt-val">${d3.format(".1%")(d.share)}</span></div>`);positionTooltip(evt)})
+      .on("mousemove",positionTooltip).on("mouseout",hideTooltip);
+    oG.append("text").attr("x",bW+6).attr("y",oy0(ori)+oy1(d.key)+oy1.bandwidth()/2+4).attr("font-size","10px").attr("fill",d.color).attr("font-weight","600").text(d3.format(".1%")(d.share));
+  })});
+  document.getElementById("cc-ori-bars").addEventListener("dblclick",()=>openFS("Archetype Distribution \u2014 "+pcLabel+" vs "+rbxLabel,"cc-ori-bars"));
+
+  // Divergence
+  const divGenres=sortedGenres.map(g=>({genre:g,diff:(rbx.shares[g]||0)-(pc.shares[g]||0),pcShare:pc.shares[g]||0,rbxShare:rbx.shares[g]||0})).sort((a,b)=>b.diff-a.diff);
+  const dm={top:20,right:50,bottom:110,left:70},dw=Math.max(700,divGenres.length*56),dh=320;
+  const dSvg=d3.select("#comp-divergence").attr("width",dw+dm.left+dm.right).attr("height",dh+dm.top+dm.bottom).style("max-width","100%").attr("viewBox",`0 0 ${dw+dm.left+dm.right} ${dh+dm.top+dm.bottom}`);
+  const dG=dSvg.append("g").attr("transform",`translate(${dm.left},${dm.top})`);
+  const dxBand=d3.scaleBand().domain(divGenres.map(d=>d.genre)).range([0,dw]).paddingInner(.22);
+  const maxAbs=d3.max(divGenres,d=>Math.abs(d.diff))||.01;
+  const dY=d3.scaleLinear().domain([-maxAbs*1.2,maxAbs*1.2]).range([dh,0]);
+  dG.append("g").attr("transform",`translate(0,${dY(0)})`).call(d3.axisBottom(dxBand).tickSize(0)).selectAll("text").attr("fill","#8b949e").attr("font-size","11px").attr("transform","rotate(-45)").attr("text-anchor","end").attr("dx","-6px").attr("dy","6px");
+  dG.append("g").call(d3.axisLeft(dY).ticks(6).tickFormat(d=>d3.format("+.0%")(d)).tickSize(-dw)).selectAll("line").attr("stroke","#21262d");
+  dG.selectAll(".domain").remove();dG.selectAll(".tick text").attr("fill","#8b949e");
+  dG.append("line").attr("x1",0).attr("x2",dw).attr("y1",dY(0)).attr("y2",dY(0)).attr("stroke","#484f58").attr("stroke-width",1.5);
+  divGenres.forEach(d=>{const barY=d.diff>=0?dY(d.diff):dY(0),barH=Math.abs(dY(0)-dY(d.diff)),color=d.diff>=0?rbxColor:pcColor;
+    dG.append("rect").attr("x",dxBand(d.genre)).attr("y",barY).attr("width",dxBand.bandwidth()).attr("height",Math.max(barH,1)).attr("fill",color).attr("rx",3).attr("opacity",.85)
+      .on("mouseover",evt=>{tooltip.style("display","block").html(`<div class="tt-genre">${d.genre}</div><div class="tt-row"><span class="tt-label">${pcLabel}</span><span class="tt-val">${d3.format(".2%")(d.pcShare)}</span></div><div class="tt-row"><span class="tt-label">${rbxLabel}</span><span class="tt-val">${d3.format(".2%")(d.rbxShare)}</span></div><div class="tt-row"><span class="tt-label">Diff</span><span class="tt-val">${d3.format("+.2%")(d.diff)}</span></div>`);positionTooltip(evt)})
+      .on("mousemove",positionTooltip).on("mouseout",hideTooltip);
+    if(Math.abs(d.diff)>.003){dG.append("text").attr("x",dxBand(d.genre)+dxBand.bandwidth()/2).attr("y",d.diff>=0?barY-6:barY+barH+14).attr("text-anchor","middle").attr("font-size","9px").attr("fill",color).attr("font-weight","600").text(d3.format("+.1%")(d.diff))}
+  });
+  document.getElementById("cc-divergence").addEventListener("dblclick",()=>openFS("Roblox Over/Under-Index vs "+pcLabel,"cc-divergence"));
+
+  // Side-by-side archetype breakdown
+  const bothGenres=allGenres.filter(g=>pc.tots[g]>0&&rbx.tots[g]>0).sort((a,b)=>pc.shares[b]-pc.shares[a]);
+  const sm={top:20,right:40,bottom:20,left:140},rowH=22,rowGap=4,pairGap=12,sw=620,sh=bothGenres.length*(rowH*2+rowGap+pairGap)+20;
+  const sSvg=d3.select("#comp-ori-by-genre").attr("width",sw+sm.left+sm.right).attr("height",sh+sm.top+sm.bottom).style("max-width","100%").attr("viewBox",`0 0 ${sw+sm.left+sm.right} ${sh+sm.top+sm.bottom}`);
+  const sGG=sSvg.append("g").attr("transform",`translate(${sm.left},${sm.top})`);
+  const sx=d3.scaleLinear().domain([0,1]).range([0,sw]);
+  const lg3=d3.select("#comp-legend-ori2");
+  archetypes.forEach(o=>{const it=lg3.append("div").attr("class","comp-legend-item");it.append("div").attr("class","comp-legend-swatch").style("background",colorMap[o]);it.append("span").text(o)});
+  let yPos=0;
+  bothGenres.forEach(genre=>{
+    sGG.append("text").attr("x",-8).attr("y",yPos+rowH-2).attr("text-anchor","end").attr("font-size","12px").attr("fill","#c9d1d9").attr("font-weight","600").text(genre);
+    [{agg:pcAggregate,tots:pc.tots,color:pcColor,label:pcLabel},{agg:robloxAggregate,tots:rbx.tots,color:rbxColor,label:rbxLabel}].forEach((p,pi)=>{
+      let xOff=0;
+      archetypes.forEach(ori=>{const val=(p.agg[genre]||{})[ori]||0;const pct=p.tots[genre]>0?val/p.tots[genre]:0;if(pct===0)return;const w=sx(pct);
+        sGG.append("rect").attr("x",xOff).attr("y",yPos).attr("width",w).attr("height",rowH).attr("fill",colorMap[ori]).attr("opacity",.75).attr("rx",2)
+          .on("mouseover",evt=>{tooltip.style("display","block").html(`<div class="tt-genre">${genre} \u2014 ${p.label}</div><div class="tt-row"><span class="tt-label">${ori}</span><span class="tt-val">${d3.format(".1%")(pct)}</span></div>`);positionTooltip(evt)})
+          .on("mousemove",positionTooltip).on("mouseout",hideTooltip);
+        if(w>36){sGG.append("text").attr("x",xOff+w/2).attr("y",yPos+rowH/2+4).attr("text-anchor","middle").attr("font-size","9px").attr("fill","#0d1117").attr("font-weight","600").attr("pointer-events","none").text(d3.format(".0%")(pct))}
+        xOff+=w});
+      sGG.append("text").attr("x",sx(1)+8).attr("y",yPos+rowH/2+4).attr("font-size","10px").attr("fill",p.color).attr("font-weight","600").text(p.label);
+      yPos+=rowH+(pi===0?rowGap:pairGap);
+    });
+  });
+  document.getElementById("cc-sidebyside").addEventListener("dblclick",()=>openFS("Archetype Breakdown by Genre \u2014 Side by Side","cc-sidebyside"));
+})();
+</script>
+</body>
+</html>
